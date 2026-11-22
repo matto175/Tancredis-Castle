@@ -133,6 +133,12 @@
     else if (k === 'C') { noise(900, 120, 'lowpass', 1.4, 0.005, 0.9); tone('sine', 70, 35, 1.2, 0.005, 0.5); }
     else if (k === 'G') { tone('sawtooth', 150, 62, 0.35, 0.25, 1.6); tone('square', 113, 50, 0.18, 0.3, 1.5); noise(700, 250, 'bandpass', 1, 0.2, 1.6); }
     else if (k === 'F') noise(500, 1800, 'bandpass', 1.6, 0.25, 3);
+    // the hero: P the power rising (a bright chord climbing), S the sword's swish, W the wave, J a jump, L a hard landing
+    else if (k === 'P') { [57, 61, 64, 69].forEach((m, i) => tone('square', 440 * 2 ** ((m - 81) / 12 + 1), 440 * 2 ** ((m - 69) / 12 + 1), 0.07, 0.05 + i * 0.12, 1.4)); noise(300, 4000, 'bandpass', 0.8, 0.6, 0.9); }
+    else if (k === 'S') noise(1500, 5000, 'bandpass', 0.7, 0.06, 0.22);
+    else if (k === 'W') { noise(2500, 200, 'lowpass', 1.4, 0.01, 0.8); tone('sine', 220, 55, 0.6, 0.01, 0.6); }
+    else if (k === 'J') tone('square', 300, 600, 0.06, 0.01, 0.15);
+    else if (k === 'L') { noise(400, 80, 'lowpass', 1.2, 0.01, 0.4); tone('sine', 90, 40, 0.5, 0.01, 0.3); }
     else if (k === 'V') { const n = [57, 64, 69, 69]; n.forEach((m, i) => { const f = 440 * 2 ** ((m - 69) / 12); const o = new OscillatorNode(ctx, { type: 'square', frequency: f }), g = new GainNode(ctx, { gain: 0 }); const s = t + i * 0.22; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.12, s + 0.02); g.gain.setValueAtTime(0.12, s + (i === 3 ? 0.7 : 0.16)); g.gain.linearRampToValueAtTime(0, s + (i === 3 ? 0.9 : 0.2)); o.connect(g); g.connect(out); o.start(s); o.stop(s + 1); }); }
   };
   const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'keydown'];

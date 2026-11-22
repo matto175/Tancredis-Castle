@@ -74,7 +74,7 @@ const waterBG = [0, 1, 2, 3, 4].map((m) => blitBG(mipView(tWater, m)));
 // main, mirror and shadow views each have a uniform block (struct View in sh_base.js)
 const NU = 216, V_MAIN = 0, V_MIR = 1, V_SH = 2;
 const UB = [0, 1, 2].map(() => new Float32Array(NU)), ubo = UB.map(() => device.createBuffer({ size: NU * 4, usage: BU.UNIFORM | BU.COPY_DST }));
-const O_SM = 48, O_CAM = 112, O_RES = 116, O_JIT = 120, O_SUN = 124, O_SUNC = 128, O_RIGHT = 132, O_UP = 136, O_FWD = 140, O_PL = 144, O_PULSE = 168, O_MISC = 172, O_LODC = 176, O_LODB = 180, O_EV = 184;
+const O_SM = 48, O_CAM = 112, O_RES = 116, O_JIT = 120, O_SUN = 124, O_SUNC = 128, O_RIGHT = 132, O_UP = 136, O_FWD = 140, O_PL = 144, O_PULSE = 168, O_MISC = 172, O_LODC = 176, O_LODB = 180, O_EV = 184, O_HERO = 188;
 const TANH = tan(30 * DEG), NEAR = 0.3, EXPO = EXPO_ORA;
 // sun at the ground: atmospheric transmittance x 1.35 (keeps sunlit paving warm rather than grey)
 const AT = atmo(), SUNC = AT.Ts.map((t, i) => t * E0 * 1.35 * SUNK * (NIGHT ? [0.7, 0.85, 1.25][i] : 1));
@@ -418,7 +418,7 @@ const evTick = (t) => {
   EVU[0] = EV.storm; EVU[1] = dg >= 0 && dg < DRAG_T ? dg : -1; EVU[2] = EV.warW > 0 ? (t - EV.warT) % BATTLE_T : -1; EVU[3] = EV.warW;
 };
 const evKey = (k) => {
-  const t = F[TIME], go = (i) => { lookAt(...EV_POSES[i]); F[VX] = F[VY] = F[VZ] = 0; };
+  const t = F[TIME], go = (i) => { if (HERO.on) return; lookAt(...EV_POSES[i]); F[VX] = F[VY] = F[VZ] = 0; };
   if (k === 'T') { EV.stormOn = !EV.stormOn; if (EV.stormOn) go(0); }
   else if (k === 'G') { EV.dragT = t; go(1); }
   else { EV.warOn = !EV.warOn; if (EV.warOn) { if (EV.warW === 0) EV.warT = t; go(2); } }
@@ -441,7 +441,7 @@ function render() {
   let mir = MIRROR ? 1 - sstep(170, 235, cy) : 0;
   for (let k = 0; k < 5; k++) { const o = O_PL + k * 4; if (U[o + 1] * WATER + U[o + 3] < -445) mir = 0; }
   U[O_PULSE + 3] = mir;
-  evTick(t); for (const B of UB) B.set(EVU, O_EV);
+  evTick(t); heroU(t); for (const B of UB) { B.set(EVU, O_EV); B.set(HU, O_HERO); }
   if (CASC) {
     // cascade: a 92 m box around the point 36 m ahead of the camera
     shadowMat(O_SM, cx + U[O_FWD] * 36, cy + U[O_FWD + 1] * 36, cz + U[O_FWD + 2] * 36, 46, -420, 700, CASC, true);
@@ -581,16 +581,24 @@ function frame(now) {
   const ax = lkx * kq, ay = lky * kq; lkx -= ax; lky -= ay; l2x += ax; l2y += ay;
   const dyw = l2x * kq, dpt = l2y * kq; l2x -= dyw; l2y -= dpt;
   const yaw = F[YAW] + dyw; let pitch = F[PIT] - dpt; pitch = pitch < -1.55 ? -1.55 : pitch > 1.55 ? 1.55 : pitch;
-  // one finger flies forward, a second flies fast
-  const sp = (ks || tN > 1 ? 100 : 12.5) * spd, k = 1 - exp(-dt * 5), mf = kf - kb + (tN > 0 ? 1 : 0), mr = kr - kl, mu = ku - kd, cp = cos(pitch), sy = sin(yaw), cw = cos(yaw);
-  const vx = F[VX] + ((sy * cp * mf + cw * mr) * sp - F[VX]) * k, vy = F[VY] + ((sin(pitch) * mf + mu) * sp - F[VY]) * k, vz = F[VZ] + ((-cw * cp * mf + sy * mr) * sp - F[VZ]) * k;
-  let x = F[CX] + vx * dt, y = F[CY] + vy * dt, z = F[CZ] + vz * dt;
-  const rad = sqrt(x * x + z * z); if (rad > 6000) { x *= 6000 / rad; z *= 6000 / rad; }
-  y = y < 0.6 ? 0.6 : y > 2500 ? 2500 : y;
-  const px = F[CX], py = F[CY], pz = F[CZ];
-  F[YAW] = yaw; F[PIT] = pitch; F[VX] = vx; F[VY] = vy; F[VZ] = vz; F[CX] = x; F[CY] = y; F[CZ] = z;
-  // collision (collide.js); key C disables it
-  if (solid) { collide(px, py, pz); x = F[CX]; y = F[CY]; z = F[CZ]; }
+  let x, y, z;
+  if (HERO.on) {
+    // the hero (hero.js): keys or the on-screen stick move him, the mouse or a finger turns the camera
+    const c = heroStep(dt, F[TIME], dyw, dpt, clamp(kf - kb - JOY[1], -1, 1), clamp(kr - kl + JOY[0], -1, 1), ks || hypot(JOY[0], JOY[1]) > 0.85);
+    F[CX] = x = c[0]; F[CY] = y = c[1]; F[CZ] = z = c[2]; F[YAW] = c[3]; F[PIT] = c[4]; F[VX] = F[VY] = F[VZ] = 0;
+  } else {
+    // one finger flies forward, a second flies fast
+    const sp = (ks || tN > 1 ? 100 : 12.5) * spd, k = 1 - exp(-dt * 5), mf = kf - kb + (tN > 0 ? 1 : 0), mr = kr - kl, mu = ku - kd, cp = cos(pitch), sy = sin(yaw), cw = cos(yaw);
+    const vx = F[VX] + ((sy * cp * mf + cw * mr) * sp - F[VX]) * k, vy = F[VY] + ((sin(pitch) * mf + mu) * sp - F[VY]) * k, vz = F[VZ] + ((-cw * cp * mf + sy * mr) * sp - F[VZ]) * k;
+    x = F[CX] + vx * dt, y = F[CY] + vy * dt, z = F[CZ] + vz * dt;
+    const rad = sqrt(x * x + z * z); if (rad > 6000) { x *= 6000 / rad; z *= 6000 / rad; }
+    y = y < 0.6 ? 0.6 : y > 2500 ? 2500 : y;
+    const px = F[CX], py = F[CY], pz = F[CZ];
+    F[YAW] = yaw; F[PIT] = pitch; F[VX] = vx; F[VY] = vy; F[VZ] = vz; F[CX] = x; F[CY] = y; F[CZ] = z;
+    // collision (collide.js); key C disables it
+    if (solid) { collide(px, py, pz); x = F[CX]; y = F[CY]; z = F[CZ]; }
+  }
+  if (HERO.on) heroHud(F[TIME]);
   for (let i = 1; i < SLOW; i++) render0(); // ?slow: extra frames drawn and discarded
   render();
   if (hud) {
@@ -609,21 +617,42 @@ const key = (e, v) => {
       else if (e.code === 'KeyC') solid = !solid;
       else if (e.code === 'KeyO') setOra(ORE[(ORE.indexOf(ORA) + 1) % 4]);
       else if (e.code === 'KeyT' || e.code === 'KeyG' || e.code === 'KeyV') evKey(e.code[3]);
-      else if (e.code >= 'Digit1' && e.code <= 'Digit9') { lookAt(...POSES[e.code.charCodeAt(5) - 49]); F[VX] = F[VY] = F[VZ] = 0; }
+      else if (e.code === 'KeyP') heroMode(!HERO.on);
+      else if (e.code === 'Space') HERO.jumpQ = 1;
+      else if (e.code === 'KeyF') HERO.powerQ = 1;
+      else if (e.code === 'Escape' && HERO.on) ui(true);
+      else if (e.code >= 'Digit1' && e.code <= 'Digit9') { if (HERO.on) heroMode(0); lookAt(...POSES[e.code.charCodeAt(5) - 49]); F[VX] = F[VY] = F[VZ] = 0; }
     }
   }
 };
-addEventListener('keydown', (e) => { if (!menu || e.code === 'KeyH') key(e, 1); });
+addEventListener('keydown', (e) => { if (!menu || e.code === 'KeyH') { if (e.code === 'Space') e.preventDefault(); key(e, 1); } });
 addEventListener('keyup', (e) => key(e, 0));
-const release = () => { kf = kb = kl = kr = ku = kd = ks = 0; tId = -1; tN = 0; };
+const release = () => { kf = kb = kl = kr = ku = kd = ks = 0; tId = -1; tN = 0; jId = lId = -1; JOY[0] = JOY[1] = 0; };
 addEventListener('blur', release);
-const capture = () => { if (mob) return; const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => canvas.requestPointerLock()).catch(() => 0); };
-addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) { mdx += e.movementX; mdy += e.movementY; } });
+const capture = () => { if (mob || HERO.on) return; const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => canvas.requestPointerLock()).catch(() => 0); };
+addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas || (HERO.on && drag && !menu)) { mdx += e.movementX; mdy += e.movementY; if (drag) dragD += abs(e.movementX) + abs(e.movementY); } });
+// as the hero the mouse stays free for the buttons: drag on the scene to look round, a click swings the sword
+let drag = 0, dragD = 0;
+canvas.addEventListener('mousedown', (e) => { if (HERO.on && e.button === 0) { drag = 1; dragD = 0; } });
+addEventListener('mouseup', (e) => { if (drag && e.button === 0) { drag = 0; if (dragD < 8 && !menu) HERO.swingQ = 1; } });
 // touch: hold to fly forward, slide to steer, second finger fast. Portrait phones show the page rotated
 // (template.html), so the touch axes turn too.
 const rot = matchMedia('(orientation:portrait) and (pointer:coarse)');
+// as the hero: a finger going down on the left third is the stick (JOY, -1..1), elsewhere it turns the camera
+const JOY = new Float32Array(2); let jId = -1, lId = -1, jx0 = 0, jy0 = 0, lx = 0, ly = 0;
+const heroTouch = (e) => {
+  const s = 1100 / min(innerWidth, innerHeight), R = 0.09 * min(innerWidth, innerHeight), W0 = rot.matches ? innerHeight : innerWidth;
+  for (const f of e.changedTouches) {
+    const x = rot.matches ? f.clientY : f.clientX, y = rot.matches ? -f.clientX : f.clientY, id = f.identifier;
+    if (e.type === 'touchstart') { if (x < W0 * 0.38 && jId < 0) { jId = id; jx0 = x; jy0 = y; } else if (lId < 0) { lId = id; lx = x; ly = y; } }
+    else if (e.type === 'touchmove') {
+      if (id === jId) { JOY[0] = clamp((x - jx0) / R, -1, 1); JOY[1] = clamp((y - jy0) / R, -1, 1); stick(JOY[0], JOY[1], jx0, jy0); }
+      else if (id === lId) { mdx += (x - lx) * s * 0.6; mdy += (y - ly) * s * 0.6; lx = x; ly = y; }
+    } else { if (id === jId) { jId = -1; JOY[0] = JOY[1] = 0; stick(0, 0, -1); } if (id === lId) lId = -1; }
+  }
+};
 const touch = (e) => {
-  e.preventDefault(); if (menu) return; tN = e.touches.length;
+  e.preventDefault(); if (menu) return; if (HERO.on) { heroTouch(e); return; } tN = e.touches.length;
   let f = null, first = false; for (let i = 0; i < tN; i++) if (e.touches[i].identifier === tId) f = e.touches[i];
   if (!f) { tId = -1; if (tN) { f = e.touches[0]; tId = f.identifier; first = true; } }
   if (f) {
@@ -643,7 +672,7 @@ $('d').onclick = () => {
 };
 $('o').onclick = () => ui(true);
 canvas.addEventListener('click', capture);
-document.addEventListener('pointerlockchange', () => { if (!mob) ui(!document.pointerLockElement); });
+document.addEventListener('pointerlockchange', () => { if (!mob && !HERO.on) ui(!document.pointerLockElement); });
 // detail buttons: the current level is lit, the others reload with theirs
 // time of day: the menu's row and O; a change is baked at load, so it reloads the page (layout.js)
 const setOra = (o) => { try { localStorage.tancrediOra = o; } catch {} location.href = location.href.replace(/[?&]ora=\w+/, ''); };
@@ -652,8 +681,24 @@ $('t').querySelectorAll('button').forEach((b, i) => { if (ORE[i] === ORA) b.clas
 $('e').querySelectorAll('button').forEach((b, i) => { b.onclick = () => { evKey('TGV'[i]); $('d').click(); }; });
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { try { localStorage.atlantis = 2 - i; } catch {} location.href = location.href.replace(/[?&]lv=\d/, ''); }; });
 
+// hero or free flight (P, the wing button): flying starts where the camera is, the hero lands below it
+const heroMode = (on) => {
+  on = on ? 1 : 0; if (on === HERO.on) return;
+  if (on) { heroPlace(F[CX], F[CZ], F[YAW]); HERO.on = 1; if (document.pointerLockElement) document.exitPointerLock(); }
+  else { HERO.on = 0; if (!menu) capture(); }
+  document.documentElement.classList.toggle('hero', !!HERO.on); $('uf').textContent = HERO.on ? '🦅' : '🛡️';
+};
+// on-screen buttons: lightning (raise the sword; a ring fills while it rests), sword, jump, flight; the stick on touch
+const hb = (id, f) => { const b = $(id); b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); f(); }); b.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }); };
+hb('up', () => { HERO.powerQ = 1; }); hb('us', () => { HERO.swingQ = 1; }); hb('uj', () => { HERO.jumpQ = 1; }); hb('uf', () => heroMode(!HERO.on));
+const stick = (x, y, x0, y0) => { const k = $('uk'); if (x0 < 0) { k.style.display = 'none'; return; } k.style.display = 'block'; k.style.setProperty('--x', x); k.style.setProperty('--y', y); if (y0 !== undefined) { k.style.left = x0 + 'px'; k.style.top = y0 + 'px'; } };
+let upLast = -1;
+const heroHud = (t) => { const d = t - HERO.pT, c = d < POWER_T ? 1 - d / POWER_T : d < POWER_T + POWER_REST ? (d - POWER_T) / POWER_REST : 1, q = round(c * 40) / 40; if (q !== upLast) { upLast = q; $('up').style.setProperty('--c', q); $('up').classList.toggle('rest', d >= POWER_T && d < POWER_T + POWER_REST); } };
+document.documentElement.classList.toggle('hero', !!HERO.on);
+
 // draw the first frames and wait for the GPU (pipelines compile on first use) before revealing
 lookAt(...POSES[4]); // the scene opens on viewpoint 5: the garden quarter, the king's castle against the sun
+heroPlace(HERO_START[0], HERO_START[2], HERO_START[3]); // and the hero on the south avenue, facing the castle
 await say('Faccio entrare la luce…', 1);
 render(); await Q.onSubmittedWorkDone();
 setTimeout(() => { keep('atlantisLoad', ''); keep('atlantisLost', ''); }, 15e3); // the load counts as survived after 15 s

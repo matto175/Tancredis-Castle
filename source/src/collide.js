@@ -4,7 +4,7 @@
 // surfaceAt(x, z, y): the floor and ceiling (under a bridge) the camera must keep between. The heights mirror the
 // numbers the meshes are built from (layout.js, meshes.js, city.js): change both together. Runs every frame; no allocation.
 const CLEAR = 0.9, CLEAR_W = 0.55; // clearance above solid ground, and above water
-const COL = new Float64Array(3); // last query: floor, ceiling, 1 where the floor is natural ground or water
+const COL = new Float64Array(3); // last query: floor, ceiling, 1 where the floor is natural ground, 2 water
 let landY = null; // set by main.js once the world is built
 const TWX = new Float64Array(6), TWZ = new Float64Array(6); for (let k = 0; k < 6; k++) { TWX[k] = TOWER_R * cos(TOWERS[k]); TWZ[k] = TOWER_R * sin(TOWERS[k]); }
 const WQA0 = 205 * DEG, WQA1 = 290 * DEG; // sector of the west quay's steps, seen from its centre
@@ -49,7 +49,7 @@ function deck(top, under, y0) { if (y0 >= top - 0.1) { COL[0] = top + CLEAR; COL
 // canal between Rin and Rout: its water, or the spoke's bridge
 function canal(r, lat, Rin, Rout, hump, y0) {
   if (lat < SPOKE_W) deck(10.31 + hump * sin(PI * clamp((r - Rin + 0.4) / (Rout - Rin + 0.8), 0, 1)), WATER, y0);
-  else { COL[0] = WATER + CLEAR_W; COL[1] = 1e9; COL[2] = 1; }
+  else { COL[0] = WATER + CLEAR_W; COL[1] = 1e9; COL[2] = 2; }
 }
 function surfaceAt(x, z, y0) {
   const r = hypot(x, z), t = atan2(z, x);
@@ -67,7 +67,7 @@ function surfaceAt(x, z, y0) {
       if (r < m) {
         // moat: the spoke's bridge climbs from the quay to the stairway's foot
         if (lat < SPOKE_W) { deck(mix(14, 10.31, clamp((r - 92) / (m + 0.4 - 92), 0, 1)) + 0.5 * sin(PI * clamp((r - 92) / (m + 0.4 - 92), 0, 1)), WATER, y0); return; }
-        COL[0] = WATER + CLEAR_W; COL[2] = 1; return;
+        COL[0] = WATER + CLEAR_W; COL[2] = 2; return;
       }
       const civ = RB.civ(t);
       if (r >= civ) {
@@ -116,7 +116,7 @@ function surfaceAt(x, z, y0) {
   // sea, and the river in its valley
   let w = 0; if (z < RIV_Z0 && riverDist(x, z) < RIV_SHELF - 2) w = riverLevel(z);
   if (h < w) COL[0] = w + CLEAR_W; else COL[0] = h + CLEAR;
-  COL[2] = nat;
+  COL[2] = h < w ? 2 : nat;
 }
 // move the camera from (px, py, pz) towards F[CX..CZ] (velocity F[VX..VZ]), correcting both in place. Natural ground
 // lifts it; anything built higher than a stair step is a wall it slides along per axis. Long steps go in <= 2 m pieces.

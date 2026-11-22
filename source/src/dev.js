@@ -48,6 +48,12 @@
     c2.width = crop[2]; c2.height = crop[3]; c2.getContext('2d').drawImage(canvas, crop[0], crop[1], crop[2], crop[3], 0, 0, crop[2], crop[3]);
     return c2.toDataURL('image/png');
   };
+  // the hero walked by script: { n frames, mf, mr, run, jumpAt: [frames], yaw (camera) } -> his track every 30 frames
+  window.__heroRun = (o) => {
+    const out = []; if (o.at) heroPlace(o.at[0], o.at[1], o.yaw || 0); HERO.on = 1; HERO.camYaw = o.yaw || 0;
+    for (let i = 0; i < o.n; i++) { if (o.jumpAt && o.jumpAt.includes(i)) HERO.jumpQ = 1; F[TIME] += 1 / 60; heroStep(1 / 60, F[TIME], 0, 0, o.mf || 0, o.mr || 0, o.run || 0); HERO.camYaw = o.yaw || 0; if (i % 30 === 0) out.push([HERO.x, HERO.y, HERO.z].map((v) => +v.toFixed(2))); }
+    return out;
+  };
   window.__shot = async (o) => {
     const out = [], dt = o.dt || 1 / 60, n = o.frames || 40;
     if (o.time !== undefined) F[TIME] = o.time;
@@ -60,7 +66,9 @@
       if (o.pair) { F[FLT] = o.fly + dt; flyAt(); F[TIME] += dt; draw(); out.push(grab(o.crop)); }
     } else {
       if (o.pose !== undefined) lookAt(...POSES[o.pose]); else if (o.cam) lookAt(...o.cam);
-      for (let i = 0; i < n; i++) { F[TIME] += dt; draw(); if (i < n - 1 && i % 8 === 7) await Q.onSubmittedWorkDone(); }
+      // the hero: { x, z, yaw, camYaw, camPitch, walk (m/s), swing (0-1), power (seconds into it), air } placed, the camera behind him
+      if (o.hero) { const h = o.hero; heroPlace(h.x, h.z, h.yaw || 0); HERO.on = 1; HERO.camYaw = h.camYaw ?? h.yaw ?? 0; HERO.camPitch = h.camPitch ?? -0.12; HERO.camD = h.camD || 6; HERO.pT = h.power === undefined ? -1e9 : F[TIME] + n * dt - h.power; HERO.swing = h.swing ?? -1; HERO.wave = h.wave ?? -1; }
+      for (let i = 0; i < n; i++) { F[TIME] += dt; if (o.hero) { const h = o.hero; if (h.swing !== undefined) HERO.swing = h.swing; const c = heroStep(dt, F[TIME], 0, 0, h.walk ? 1 : 0, 0, (h.walk || 0) > 4); HERO.camYaw = h.camYaw ?? h.yaw ?? 0; if (h.air) { HERO.ground = 0; HERO.y += 0; } F[CX] = c[0]; F[CY] = c[1]; F[CZ] = c[2]; F[YAW] = c[3]; F[PIT] = c[4]; } draw(); if (i < n - 1 && i % 8 === 7) await Q.onSubmittedWorkDone(); }
       out.push(grab(o.crop));
     }
     await Q.onSubmittedWorkDone();

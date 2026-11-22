@@ -273,6 +273,8 @@ fn shafts(fc: vec2f, z: f32, rd: vec3f) -> vec3f {
   // lightning lights the Serpent Fortress's plain
   let fz = flash(); if (fz > .01) { col += dc * vec3f(.7, .7, 1.) * fz * gk * .5 * exp(-length(wp.xz - SERPI_XZ) / 450.) * sat(N.y * .5 + .6); }
   // storm: each stroke on the castle lights up the city around it, walls facing the castle and the sky most
+  // the hero's lightning lights up everything round him for a moment
+  if (view.hero3.y > .25 && view.hero3.y < 1.) { let hf = (1. - ss(.25, 1., view.hero3.y)) * (.6 + .4 * step(.25, fract(view.cam.w * 13.))); col += dc * vec3f(.7, .82, 1.) * hf * gk * .35 * exp(-distance(wp, view.hero.xyz) / 20.); }
   let fk = flashK(); if (fk > .01) { let tc = normalize(vec3f(0., 160., 0.) - wp); col += dc * vec3f(.75, .78, 1.) * fk * gk * .9 * exp(-length(wp.xz) / 650.) * (sat(dot(N, tc)) * .6 + sat(N.y) * .4 + .1); }
   return vec4f(aerial(col, view.cam.xyz, rd, dist) * (1. - .25 * stm) + shafts(fc.xy, z, rd) * (1. - stm), 1.);
 }

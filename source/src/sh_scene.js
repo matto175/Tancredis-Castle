@@ -186,6 +186,51 @@ fn shipAt(lp: vec3f, ln: vec3f, role: u32, part: u32, q: vec4f, id: u32) -> EvP 
   let sw = seaWave(base.xz, vec4f(1.)).x;
   return EvP(base + vec3f(0., sw - .3, 0.) + qrot(q, p), qrot(q, n));
 }
+// the hero (hero.js, events.js meshHero): walking, swinging the sword, raising it to the lightning, sparks and the wave
+fn heroAt(lp: vec3f, ln: vec3f, role: u32, part: u32) -> EvP {
+  let H = view.hero; let H2 = view.hero2; let H3 = view.hero3;
+  if (H2.w < .5) { return EvP(vec3f(0., -1e5, 0.), ln); }
+  let T = view.cam.w; let pw = H3.x; let tr = H3.y; let air = H3.z; let sp = H2.y;
+  var p = lp; var n = ln;
+  let sw = sin(H2.x); let a = min(sp * 1.6, 1.) * mix(.5, .85, sp) * (1. - air);
+  // raised sword while transforming: the right arm goes straight up (rest 0 = down, the blade forward)
+  let up = select(0., ss(0., .3, tr) * (1. - ss(1.3, 1.6, tr)), tr >= 0.);
+  if (role == 1u && part == 2u) { let c = vec3f(.32, .92, p.z); p = c + (p - c) * pw * (1. + .15 * sin(T * 30. + p.z * 9.)); }
+  // the wrist turns the blade up along the arm as he raises it (and over the shoulder in the wind-up)
+  if (role == 1u && part >= 1u) { let c = vec3f(.32, .92, .08); let wr = 1.5708 * up; p = c + rotX(p - c, wr); n = rotX(n, wr); }
+  if (role == 3u || role == 4u) {
+    let s = select(-1., 1., role == 3u); let hip = vec3f(s * .115, .95, 0.);
+    let ang = s * sw * a + air * select(-.5, .35, role == 3u); p = hip + rotX(p - hip, ang); n = rotX(n, ang);
+  }
+  if (role == 1u || role == 2u) {
+    let s = select(-1., 1., role == 1u); let sh = vec3f(s * .25, 1.47, 0.);
+    var ang = -s * sw * a * .7 - air * .5;
+    if (role == 1u) {
+      // the swing: wind up over the head, cut down and forward, back to guard
+      let w = H2.z;
+      if (w >= 0.) { ang = select(mix(-.3, -2.9, ss(0., .3, w)), select(mix(-2.9, .1, ss(.3, .5, w)), mix(.1, -.3, ss(.55, 1., w)), w > .5), w > .3); }
+      else { ang = mix(ang * .6 - .3, -2.95, up); }
+    }
+    p = sh + rotX(p - sh, ang); n = rotX(n, ang);
+    // the swing also turns the arm across the body
+    if (role == 1u && H2.z >= 0.) { let tw = sin(PI * sat(H2.z * 1.6)) * .5; p = rotZ(p - sh, -tw * .3) + sh; }
+  }
+  if (role == 5u) {
+    let ang = .1 + sp * 1.1 + air * .6 + .06 * sin(T * 6. + p.y * 4. + p.x * 3.) * (.3 + sp) + .3 * pw * (.5 + .5 * sin(T * 9. + p.x * 5.));
+    let c = vec3f(0., 1.5, -.13); p = c + rotX(p - c, ang * sat((1.5 - lp.y) * 1.4)); n = rotX(n, ang);
+  }
+  if (role == 6u) {
+    // sparks circling him, rising
+    let fi = f32(part); let ag = T * (3. + fi * .3) + fi * .63; let hgt = fract(T * .5 + fi * .137) * 2.;
+    p = vec3f(cos(ag) * .65, .1 + hgt, sin(ag) * .65) + (lp - vec3f(0., 1., 0.)) * pw * (1. + h11(fi + floor(T * 8.)) * 1.5);
+  }
+  if (role == 7u) { let w = H3.w; let k = select(0., 1., w >= 0. && w < .7); let g = 1. + w * 14.; p = vec3f(p.x * g, p.y * (1. - w), p.z * g) * k; }
+  if (role == 8u) { let k = select(0., 1., tr > .25 && tr < 1.) * step(.25, fract(T * 13.)); let b = vec3f(.31, 3.05, .05); p = b + (p - b) * k; }
+  // he grows when transformed, bobs as he walks
+  let s = 1. + .3 * pw; p *= s; p.y += abs(sin(H2.x)) * .05 * sp * (1. - air);
+  let c = cos(H.w); let sn = sin(H.w); let rt = vec3f(c, 0., sn); let fw = vec3f(sn, 0., -c);
+  return EvP(H.xyz + rt * p.x + vec3f(0., p.y, 0.) + fw * p.z, normalize(rt * n.x + vec3f(0., n.y, 0.) + fw * n.z));
+}
 fn transform(v: VI) -> VO {
   let e = vis[v.ii]; let it = inst[e & 0xffffffu];
   let mat = u32(v.ext.x * 255. + .5);
@@ -216,7 +261,7 @@ fn transform(v: VI) -> VO {
   let evc = it.tint >> 24u;
   if ((mat == 21u || mat == 22u) && evc >= 240u && evc < 250u) {
     let rp = u32(v.ext.z * 255. + .5); var a: EvP;
-    if (evc == 240u) { a = dragonAt(lp, vn, rp / 16u); } else { a = shipAt(lp, vn, rp / 16u, rp & 15u, q, evc - 241u); }
+    if (evc == 240u) { a = dragonAt(lp, vn, rp / 16u); } else if (evc == 246u) { a = heroAt(lp, vn, rp / 16u, rp & 15u); } else { a = shipAt(lp, vn, rp / 16u, rp & 15u, q, evc - 241u); }
     wp = a.p; n = a.n;
   }
   var o: VO;
@@ -407,9 +452,11 @@ fn terrain(p: vec3f, dx: vec3f, dy: vec3f, fw: f32, n: vec3f, tv: vec3f) -> Mt {
 }
 // bambini: skin, hair, bright clothes, trousers (linear albedo)
 // event palettes (events.js): 0 dragon red, 1 dragon gold, 2 wing, 3 horn, 4 timber, 5 sail, 6 king's blue, 7 gold,
-// 8 black hull, 9 dark red sail, 10 smoke, 11 spray; fire: 0 flame, 1 core, 2 eye, 3 cannon flash, 4 lantern
-const PAL = array<vec3f, 12>(vec3f(.34, .05, .03), vec3f(.55, .38, .1), vec3f(.2, .05, .04), vec3f(.66, .6, .46), vec3f(.24, .14, .07), vec3f(.74, .72, .66), vec3f(.06, .14, .38), vec3f(.66, .47, .14), vec3f(.035, .035, .045), vec3f(.26, .035, .03), vec3f(.3, .3, .31), vec3f(.82, .87, .9));
-const FPAL = array<vec3f, 5>(vec3f(1., .38, .06), vec3f(1., .85, .45), vec3f(1., .8, .1), vec3f(1., .75, .35), vec3f(1., .62, .25));
+// 8 black hull, 9 dark red sail, 10 smoke, 11 spray; the hero: 12 skin, 13 hair, 14 tunic, 15 armour, 16 cape, 17 leather,
+// 18 trousers. Fire: 0 flame, 1 core, 2 eye, 3 cannon flash, 4 lantern, 5 lightning
+const PAL = array<vec3f, 19>(vec3f(.34, .05, .03), vec3f(.55, .38, .1), vec3f(.2, .05, .04), vec3f(.66, .6, .46), vec3f(.24, .14, .07), vec3f(.74, .72, .66), vec3f(.06, .14, .38), vec3f(.66, .47, .14), vec3f(.035, .035, .045), vec3f(.26, .035, .03), vec3f(.3, .3, .31), vec3f(.82, .87, .9),
+  vec3f(.7, .46, .32), vec3f(.16, .09, .04), vec3f(.06, .13, .42), vec3f(.62, .64, .68), vec3f(.42, .03, .025), vec3f(.2, .11, .05), vec3f(.1, .09, .08));
+const FPAL = array<vec3f, 6>(vec3f(1., .38, .06), vec3f(1., .85, .45), vec3f(1., .8, .1), vec3f(1., .75, .35), vec3f(1., .62, .25), vec3f(.62, .85, 1.));
 const KSKIN = array<vec3f, 4>(vec3f(.86, .6, .46), vec3f(.7, .44, .3), vec3f(.42, .23, .13), vec3f(.22, .11, .06));
 const KHAIR = array<vec3f, 5>(vec3f(.05, .035, .025), vec3f(.16, .08, .035), vec3f(.55, .38, .16), vec3f(.32, .11, .04), vec3f(.025, .02, .018));
 const KCLOTH = array<vec3f, 8>(vec3f(.75, .05, .04), vec3f(.85, .62, .04), vec3f(.1, .35, .78), vec3f(.12, .5, .1), vec3f(.85, .25, .45), vec3f(.9, .3, .03), vec3f(.35, .12, .65), vec3f(.8, .8, .76));
@@ -547,11 +594,18 @@ const FLOWERS = array<vec3f, 8>(vec3f(.52, .08, .24), vec3f(.8, .36, .5), vec3f(
     o.alb = c * (.78 + .3 * h21(vec2f(row, cell))) * (1. - .45 * line(min(fy, 1. - fy) * .42, .02, fw)); o.rough = .32; o.nb = triN(p, dx, dy, w, 2.1, false) * .08;
   } else if (mat == 21u) {
     // painted: dragon scales, ship timbers and sails, smoke, spray (palette entry in uv.x)
-    let k = min(u32(i.uv.x * 255. + .5), 11u); let A = tri(tNoiseA, p, dx, dy, w, 1.4);
+    let k = min(u32(i.uv.x * 255. + .5), 18u); let A = tri(tNoiseA, p, dx, dy, w, 1.4);
     o.alb = PAL[k] * (.82 + .36 * A.r); o.rough = select(.75, .38, k <= 1u || k == 11u);
+    // the hero's armour: polished silver, gold when transformed; his cape burns brighter
+    if (abs(i.tint.a * 255. - 246.) < .5) {
+      let pw = view.hero3.x; o.alb = PAL[k] * (.92 + .16 * A.r);
+      if (k == 15u || k == 7u) { let g = select(0., pw, k == 15u); o.alb = mix(PAL[k], vec3f(1., .58, .08), g); o.metal = mix(1., .2, g); o.rough = mix(.42, .45, g); }
+      if (k == 16u) { o.alb = mix(PAL[16], vec3f(.8, .12, .02), pw); }
+      if (k == 14u) { o.alb = mix(PAL[14], vec3f(.04, .1, .5), pw); }
+    }
   } else if (mat == 22u) {
     // fire, cannon flash, eyes and lanterns: shine like GLOW
-    o.alb = FPAL[min(u32(i.uv.x * 255. + .5), 4u)]; o.rough = .6; glass = .3;
+    o.alb = FPAL[min(u32(i.uv.x * 255. + .5), 5u)]; o.rough = .6; glass = .3;
   } else if (mat == 20u) {
     // light: windows, eyes, magic (colour in uv); flagged for the lighting pass through the glass channel
     o.alb = i.uv * i.uv; o.rough = .6; glass = .3;

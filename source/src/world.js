@@ -80,7 +80,7 @@ function buildWorld() {
 
   // the castles of Tancredi's world (castles.js) in place of the crystal, lotus, pylons and crystal towers
   placeCastles(type, put, land.heightAt);
-  placeEvents(type, put); // the dragon and the fleets (events.js)
+  placeEvents(type, put); placeHero(type, put); // the dragon, the fleets and the hero (events.js)
 
   // water
   const wm = new MB(1 << 14);

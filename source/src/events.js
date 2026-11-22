@@ -143,3 +143,62 @@ function placeEvents(type, put) {
   const tKing = type([meshShip(true)], K.SOLID, 1e9, 1e9, 1e9, 0, fl), tDark = type([meshShip(false)], K.SOLID, 1e9, 1e9, 1e9, 0, fl);
   FLEET.forEach((f, i) => put(f[2] > 0 ? tKing : tDark, f[0], 0, f[1], 1, qYaw(f[2] * PI / 2), rgb(1, 1, 1, (241 + i) / 255)));
 }
+
+// Tancredi il Prode (hero.js), 1.85 m, feet at 0, facing +z, sword in the right hand (+x). Roles: 0 body, 1/2 right/left
+// arm (1 with the sword: part 1 the sword, 2 the blade's glow), 3/4 right/left leg, 5 cape, 6 sparks (part = which), 7 wave of light,
+// 8 the lightning of the transformation. Armour silver (gold when transformed, sh_scene.js), blue tunic, red cape.
+function meshHero() {
+  const mb = new MB(1 << 13), S = 1.47, HIP = 0.95;
+  // legs: trousers, boots, feet
+  for (const s of [1, -1]) {
+    const role = s > 0 ? 3 : 4, x = s * 0.115;
+    evMat(mb, M.PAINT, 18, role); mb.tube([[x, HIP, 0, 0.085], [x, 0.55, 0.02, 0.075], [x, 0.42, 0.01, 0.07]], 8, false);
+    evMat(mb, M.PAINT, 17, role); mb.tube([[x, 0.46, 0.01, 0.085], [x, 0.1, 0, 0.075]], 8, false); mb.box(x - 0.055, 0, -0.07, x + 0.055, 0.1, 0.16, 0.03);
+    evMat(mb, M.PAINT, 7, role); mb.tube([[x, 0.47, 0.01, 0.09], [x, 0.43, 0.01, 0.09]], 8, false);
+  }
+  // tunic (with its skirt), belt, chest armour, shoulder guards, collar
+  evMat(mb, M.PAINT, 14);
+  blob(mb, 0, 1.22, 0, 0.19, 0.3, 0.125, 14);
+  mb.lathe([[0, 0.68], [0.235, 0.68], [0.2, 0.86], [0.17, 1.0]], { seg: 14 });
+  evMat(mb, M.PAINT, 17); mb.lathe([[0, 0.93], [0.185, 0.93], [0.18, 1.0]], { seg: 14 }); evMat(mb, M.PAINT, 7); mb.box(-0.045, 0.92, 0.15, 0.045, 1.01, 0.2, 0.01);
+  evMat(mb, M.PAINT, 15);
+  blob(mb, 0, 1.3, 0.025, 0.24, 0.21, 0.16, 14);
+  for (const s of [1, -1]) blob(mb, s * 0.25, 1.47, 0, 0.13, 0.09, 0.12, 10);
+  evMat(mb, M.PAINT, 7); blob(mb, 0, 1.33, 0.155, 0.06, 0.06, 0.02, 8); // gold boss on the chest
+  // neck, head, hair, a short beard line, eyes
+  evMat(mb, M.PAINT, 12); mb.tube([[0, 1.47, 0, 0.055], [0, 1.58, 0.01, 0.05]], 8, false); blob(mb, 0, 1.68, 0.01, 0.105, 0.125, 0.115, 12);
+  blob(mb, 0, 1.665, 0.11, 0.018, 0.025, 0.02, 6); // nose
+  evMat(mb, M.PAINT, 13); blob(mb, 0, 1.745, -0.01, 0.12, 0.085, 0.125, 12); blob(mb, 0, 1.67, -0.07, 0.112, 0.1, 0.07, 10); blob(mb, 0, 1.765, 0.075, 0.1, 0.035, 0.05, 10);
+  evMat(mb, M.PAINT, 8); for (const s of [1, -1]) blob(mb, s * 0.04, 1.69, 0.107, 0.011, 0.011, 0.006, 6);
+  // arms: sleeve, silver bracer, hand; the sword in the right hand pointing forward (cross-guard gold, blade silver)
+  for (const s of [1, -1]) {
+    const role = s > 0 ? 1 : 2, x0 = s * 0.25, x1 = s * 0.3, x2 = s * 0.32;
+    evMat(mb, M.PAINT, 14, role); mb.tube([[x0, S, 0, 0.06], [x1, 1.19, 0.02, 0.052]], 8, false);
+    evMat(mb, M.PAINT, 15, role); mb.tube([[x1, 1.2, 0.02, 0.055], [x2, 0.95, 0.07, 0.05]], 8, false);
+    evMat(mb, M.PAINT, 12, role); blob(mb, x2, 0.92, 0.08, 0.045, 0.05, 0.05, 8);
+  }
+  const hx = 0.32, hy = 0.92, hz = 0.08;
+  evMat(mb, M.PAINT, 17, 1, 1); mb.tube([[hx, hy, hz - 0.1, 0.022], [hx, hy, hz + 0.08, 0.022]], 6); evMat(mb, M.PAINT, 7, 1, 1); blob(mb, hx, hy, hz - 0.12, 0.03, 0.03, 0.03, 6);
+  mb.box(hx - 0.13, hy - 0.02, hz + 0.08, hx + 0.13, hy + 0.02, hz + 0.12, 0.01);
+  evMat(mb, M.PAINT, 15, 1, 1);
+  const blade = (x, w, t) => { const z0 = hz + 0.12, z1 = hz + 1.02; sheet(mb, [[x - w, hy, z0], [x + w, hy, z0], [x + w * 0.7, hy, z1 - 0.1], [x, hy, z1], [x - w * 0.7, hy, z1 - 0.1]], [0, 1, 0]); mb.tube([[x, hy, z0, t], [x, hy, z1 - 0.05, t * 0.5]], 4); };
+  blade(hx, 0.035, 0.012);
+  // the glow round the blade (part 2): from nothing to a blue-white sheath with the power
+  evMat(mb, M.FIRE, 5, 1, 2); mb.tube([[hx, hy, hz + 0.13, 0.09], [hx, hy, hz + 0.6, 0.11], [hx, hy, hz + 1.06, 0.04]], 8);
+  // cape from the shoulders
+  evMat(mb, M.PAINT, 16, 5);
+  const rows = [];
+  for (let j = 0; j <= 4; j++) { const v = j / 4, y = 1.5 - v * 1.0, w = 0.22 + 0.14 * v, z = -0.13 - 0.06 * v, row = []; for (let i = 0; i <= 4; i++) { const u = i / 4; row.push([(u - 0.5) * 2 * w, y, z - 0.04 * sin(PI * u)]); } rows.push(row); }
+  for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) sheet(mb, [rows[j][i], rows[j][i + 1], rows[j + 1][i + 1], rows[j + 1][i]], [0, 0, -1]);
+  // sparks round him while transformed (each placed by the shader)
+  for (let i = 0; i < 10; i++) { evMat(mb, M.FIRE, 5, 6, i); blob(mb, 0, 1, 0, 0.05, 0.05, 0.05, 6); }
+  // wave of light from a blow: a flat ring at his feet, grown by the shader
+  evMat(mb, M.FIRE, 5, 7); mb.lathe([[1.05, 0.12], [1, 0.3], [0.9, 0.12]], { seg: 32 });
+  // the lightning: a jagged stroke from the clouds down to the raised sword's tip (about 3.05 m up)
+  evMat(mb, M.FIRE, 5, 8);
+  const pts = []; let bx = 0.31, bz = 0.05; for (let k = 0; k <= 14; k++) { const y = 3.05 + k * k * 0.45; pts.push([bx, y, bz, 0.06 + k * 0.012]); bx += (h2(k, 3) - 0.5) * (1 + k * 0.4); bz += (h2(k, 7) - 0.5) * (1 + k * 0.4); }
+  mb.tube(pts, 5);
+  nocol(mb); mb.mat = 0;
+  return mb.build();
+}
+function placeHero(type, put) { put(type([meshHero()], K.SOLID, 1e9, 1e9, 1e9, 0, ALWAYS | NO_BAKE | NO_MIRROR), 0, 0, 0, 1, Q0, rgb(1, 1, 1, 246 / 255)); }

@@ -52,6 +52,20 @@ Si cambiano con il tasto O o dal menu (la pagina si ricarica, perché luce e omb
 Ogni evento porta la vista nel punto da cui si vede meglio. Gli stessi eventi si avviano dal menu, anche su telefono e
 tablet. Il drago e le navi sono originali: nessun personaggio o veicolo di altre opere.
 
+## 3quater. L'eroe
+
+**Tancredi il Prode** è un giovane cavaliere originale, non il personaggio di una serie: capelli castani, tunica blu,
+corazza d'argento con un bottone d'oro sul petto, spallacci, bracciali d'argento, stivali di cuoio, mantello rosso. Porta
+la **Spada del Tuono**.
+
+- Cammina, corre e salta su strade, ponti, scale e piazze; i muri e l'acqua lo fermano.
+- Clic o pulsante con le spade: un fendente.
+- F o pulsante con il fulmine: alza la spada, un fulmine scende sulla lama e grida "Spada del Tuono, dammi la forza!".
+  La corazza diventa d'oro, la tunica blu intenso, il mantello rosso fuoco, cresce di un terzo e scintille azzurre gli
+  girano attorno. Per 30 secondi corre e salta molto di più e ogni colpo fa un'onda di luce. Poi 6 secondi di riposo.
+- Niente sangue né avversari veri per ora: la seconda fase, se richiesta, aggiungerà avversari teatrali che spariscono
+  in una nuvola.
+
 ## 4. Musica
 
 Brano originale a 8 bit, eroico: La minore, 112 battiti al minuto, 32 battute. Una fanfara a onda quadra, un

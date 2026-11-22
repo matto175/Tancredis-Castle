@@ -63,6 +63,7 @@ struct View {
   lodc: vec4f, // LOD reference point; w: 1 / the level's distance scale
   lodb: vec4f, // x: minimum LOD distance (baked maps on Medium/Low: never the finest)
   ev: vec4f, // events (Tancredi's Castle): storm 0-1, seconds into the dragon's flight, seconds into the sea battle (< 0: off), the fleets' presence 0-1
+  hero: vec4f, hero2: vec4f, hero3: vec4f, // the hero (hero.js heroU): place and facing; walk clock, speed, swing, shown; power, transformation, in the air, wave
 }
 `;
 // full-screen triangle
