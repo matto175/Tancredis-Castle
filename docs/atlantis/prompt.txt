@@ -1,0 +1,83 @@
+Build a real-time Atlantis scene that runs in the browser and lets me fly a free camera through it. The look is FANTASY PHOTOREALISM: a fantasy city rendered like a current-generation AAA game, never stylized, cartoonish or flat. A previous attempt ended up flat and cartoonish; avoiding that is the main goal.
+
+INPUTS (read all of them before writing any code)
+- artstyle.md: the visual spec. It is the sole authority on how the scene looks.
+- concept-arts/: eight reference images of this exact city in the target game-render style (top level only; ignore the rejected/ and source/ subfolders). Look at every one. artstyle.md section 3 says what to match and what to exceed.
+- C:\Users\maks0\Desktop\Underwater_Git: an earlier project of mine with the same constraints and hardware, whose result I'm very happy with. Study its source for structure and technique that worked: GPU-side world generation, heavy instancing (about 2M leaves at about 180 fps at 1440p), a bloom chain, readable source/ modules plus a build script that emits one minified index.html, a dev.html with a scripted fly-through and benchmark, and viewpoint keys 1–6. Reuse its patterns freely. Do NOT reuse its visuals.
+
+PRIORITIES (in this order when they conflict)
+1. Visual quality: realism and fidelity to artstyle.md and the references
+2. Stable frame pacing at the target spec
+3. Small bundle size
+
+CONSTRAINTS
+- WebGPU. No Three.js, Babylon.js or other engines.
+- Everything procedural: no texture, model or image files. The deliverable is a single self-contained index.html. Report its minified size.
+- Zero per-frame JS allocations (no GC stutter). Preallocate all buffers, bind groups and uniform arrays.
+
+TARGET
+- Windows 11 25H2, Chrome 157, RTX 5070 Ti, Ryzen 7800X3D, 180 Hz monitor.
+- 2560×1440 at full resolution. GPU frame time ≤ 11 ms average and no frame > 16.7 ms during the scripted 60 s fly-through.
+
+CONTROLS
+WASD move, mouse look (pointer lock), Q/E down/up, Shift to accelerate (base about 25 m/s, Shift about ×4). Keys 1–6 jump to the review shots. H toggles a stats overlay. Dev build only: F plays the fly-through, B runs it as a benchmark.
+
+WORLD CONVENTIONS
+- Metres, +Y up, city centre at the origin, +Z = south (harbour), −Z = north (mountains), +X = east. Sea level y = 0, land plateau y = 10, ring water surfaces y = 6.5, podium tiers rise to y = 40, master crystal tip y = 145.
+- Fixed sun: about 15° elevation from the west-north-west. Direction towards the sun ≈ (−0.91, 0.26, −0.33).
+- A fixed seed, so every run produces the same world and the review shots stay comparable.
+
+REVIEW SHOTS (artstyle.md section 13). These are starting points: tune each once so its framing and sun side resemble its reference image, then freeze it.
+| # | Position | Look-at |
+| P1 hero aerial | (140, 360, 980) | (0, 45, 0) |
+| P2 axis approach | (0, 20, 330) | (0, 75, 0) |
+| P3 canal level (the middle canal widens into a lagoon here) | (241, 8.5, 42) | (164, 14, 63) |
+| P4 crystal close-up | (10, 46, 59) | (0, 105, 0) |
+| P5 garden quarter | (185, 40, 240) | (0, 60, 0) |
+| P6 west quay toward the sun | (−870, 18, 150) | (−1150, 22, 50) |
+Vertical FOV about 60°, near plane about 0.3 m, far plane 8 km or more.
+
+SCRIPTED 60 s FLY-THROUGH (one smooth spline; peak speed ≤ 80 m/s, yaw rate ≤ 40°/s)
+- 0–10 s: low glide over the sea from (0, 6, 1300), rising to (0, 60, 700), revealing the harbour, the rings and the crystal.
+- 10–22 s: up the south spoke, descending to about y = 20, past domes and canal arcs.
+- 22–32 s: rise over the podium and orbit the crystal (radius about 45 m, y = 60–120, about 180°).
+- 32–42 s: north over the civic ring and garden quarter, skimming canals at about 8 m.
+- 42–52 s: climb past the mountain waterfalls and turn back.
+- 52–60 s: pull back and rise to a wide framing like P1.
+
+RENDERING APPROACH (recommendations; deviate where you find something better, and say why)
+Realism comes mostly from lighting and material response, then from detail. Because the sun, sky and most of the world never change, a lot can be computed once at load and cached. Spend that budget on quality.
+1. HDR linear pipeline (rgba16float). A physically based sky and aerial perspective (for example Hillaire-style transmittance, sky-view and aerial-perspective LUTs), computed once since time of day is fixed. Sun disc and halo. Filmic tone mapping (AgX- or ACES-like) at a fixed exposure, with dithering against banding.
+2. Image-based lighting from that sky: a prefiltered specular cubemap plus diffuse SH, built once at load. Optionally add a few static reflection probes in the city, so stone and glass reflect white architecture and water, not only sky.
+3. Sun shadows: cascaded shadow maps, texel-snapped and stable, with soft filtering. The sun is fixed and most geometry is static, so cache the static casters and redraw only what moves (or ignore sway in distant cascades).
+4. Ambient occlusion: screen-space AO (GTAO-like) for contact shadows, plus per-vertex or analytic AO baked at generation time. Grounding is the number-one cue that separates realistic from cartoonish.
+5. Materials: GGX microfacet BRDF with energy-conserving diffuse and specular AA (roughness widened by normal variance). Procedural detail (triplanar marble veining, pores, plaster grain, polished vs honed zones, waterline darkening and moss) that fades with distance instead of aliasing.
+6. Geometry: bevel or round every architectural edge so it catches a highlight. Add secondary detail (cornices, stepped bases, window reveals and frames, dome ribs, balustrades, planters, vines). Generate everything from a small set of parametric generators: revolved profiles, extruded or tapered n-gons, arched arcade modules, swept arcs and a heightfield terrain, all instanced.
+7. Vegetation, the highest-risk area for realism: real trunk and branch structure with clustered leaf cards (alpha-to-coverage with MSAA, or dithered with TAA), backlit translucency, wind sway in the vertex shader, columnar cypress, and instanced flower clusters in beds and planters. Use a leaf budget like the underwater project's. No sphere or blob canopies.
+8. Water: screen-space reflections falling back to a planar reflection or the probes and sky (canals must clearly mirror the crystal, towers and domes); refraction with depth absorption and a visible stone floor; filtered procedural wave normals; caustics on floors and on quay walls near the water. The indigo light-liquid uses the same pipeline with dark absorption, low waves and emissive flow filaments.
+9. Crystal and glass: screen-space refraction of the opaque scene behind (sample the colour buffer with per-channel offsets for edge dispersion), true facet normals, internal facet reflections from the environment, fresnel, and a restrained emissive core. Domes are thin glass (reflection plus faintly tinted transmission) with ribs as real geometry.
+10. Atmosphere and post: height fog and aerial perspective from the LUTs, god rays (shadow-map or screen-space, low resolution), an energy-conserving bloom chain at low intensity (no sparkle stars), a subtle vignette, no film grain and no heavy chromatic aberration.
+11. Anti-aliasing: whichever gives the cleanest motion. TAA with neighbourhood clamping handles foliage and specular aliasing best; MSAA 4× plus specular AA is the fallback if TAA ghosts. Filter all thin procedural lines (inlay, ribs) analytically with screen-space derivatives.
+12. Stability: no hard LOD swaps (morph or dithered cross-fade), instance density that thins with distance, reversed-Z float depth, and slow, smooth animation driven by a time uniform.
+
+PERFORMANCE DISCIPLINE
+- Generate the world on the GPU at load. Animate on the GPU (sway, water, the pulse, craft paths, clouds) from a time uniform; no per-instance CPU updates.
+- One instanced draw per mesh type; GPU frustum culling or indirect draws where they help; a small number of pipelines.
+- GPU timestamp queries per pass from day one, so you always know where the milliseconds go.
+- When over budget, cut in this order (cut the lowest first, never cut the top tier): craft, pulse ripples on water, god rays, flower density far away, small caustics → vegetation density, reflection quality → (never cut) sky and atmosphere, tone mapping, water reflections, shadows and AO, the crystal and lotus, the ring layout.
+
+WORKFLOW
+- Depth before breadth. Build the harness first (camera, controls, shots, fly-through, timing, render-to-PNG). Then get the lighting stack (sky, IBL, shadows, AO, tone mapping) and the materials looking right on a few hero buildings, until a stripped-down P2 already reads as photoreal. Only then populate the city. A few elements that look real beat many that look like props.
+- Suggested order: harness → sky, atmosphere and sea → terrain and layout → lighting stack and materials on the podium, crystal and one bridge (check P2, P4) → water (P3) → buildings and vegetation (P1, P5) → motion and remaining details (P6, fly-through).
+- Mirror the underwater project's structure: readable source/ modules, a build script that emits the minified index.html, and a dev.html with the fly-through and benchmark.
+- Before trusting any render or timing, confirm Chrome is using the RTX 5070 Ti hardware adapter (not SwiftShader or a software fallback).
+- Never create or edit files through the shell; use the Edit/Write tools. Work token-efficiently.
+- Any command running longer than 120 s is wrong or needs a faster approach; don't loop on it.
+- Cap the FPS during development and never leave the scene running in the background when it isn't needed.
+
+VERIFICATION
+- Visual critic: a separate subagent that sees ONLY artstyle.md, the top-level concept-arts/ images and your renders, never your code or reasoning. Give it the 6 shots at 2560×1440 from GPU-accelerated Chrome, plus fly-through frames for the temporal checks (pairs of consecutive frames at several points along the path, plus 100% crops of foliage, inlay and water highlights). It judges with the artstyle.md section 14 rubric and returns prioritized, concrete defects. Run it at milestones (after the lighting-stack step, after populating the city, at the end), not only at the end.
+- Iterate until the critic reports nothing above "minor". If a defect survives 3 genuine fix attempts, record it as a known limitation (what was tried, why it failed) and move on.
+- Performance: GPU timestamp queries plus a frame-time log over the scripted fly-through. Report average, 99th percentile and maximum.
+
+DONE WHEN both gates pass. Deliver index.html, its minified size, the perf report, the critic's final review and any known limitations.
