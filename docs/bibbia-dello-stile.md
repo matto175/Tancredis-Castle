@@ -14,21 +14,21 @@ avvolta da un serpente gigante del signore oscuro.
 
 | Luogo | Dove | Forma | Colori | Luce |
 | --- | --- | --- | --- | --- |
-| Castello di Tancredi | al centro, sul podio a 40 m | mura ad anello con 6 porte, 6 torri interne, mastio ottagonale, 4 torri d'angolo, torre maestra fino a 156 m | marmo bianco, coni azzurri, punte d'oro, porte di quercia | finestre calde, arancio dorato |
-| Rocca d'Avorio | 2,3 km a nord-ovest, su un picco a 260 m | teschio d'avorio con sopracciglia arrabbiate e corna da toro, due torri sottili con coni viola, un globo di luce che galleggia | avorio, corna più scure, orbite nere | occhi azzurro ghiaccio, luce viola dalla bocca |
-| Fortezza delle Serpi | 2 km a nord-est, piana a 34 m | torre nera affusolata alta 186 m, un serpente che la avvolge per tre giri e si alza sopra la punta, 4 torri con teste di cobra, mura ottagonali | pietra nera e viola, serpente verde scuro, zanne bianche | anelli e porta verde veleno, fulmini |
+| Castello di Tancredi | al centro, sul podio a 40 m | mura ad anello con 6 porte, 6 torri interne, mastio ottagonale, 4 torri d'angolo, torre maestra fino a 156 m | granito grigio, tetti di ardesia scura, punte d'oro, porte di quercia | finestre calde, arancio dorato |
+| Rocca d'Avorio | 2,3 km a nord-ovest, su un picco a 260 m | teschio d'avorio con sopracciglia arrabbiate e corna da toro, due torri sottili con tetti blu scuro, un globo di luce che galleggia | osso grigio chiaro, corna di bronzo, orbite nere, torri con tetti blu scuro | occhi azzurro ghiaccio, luce viola dalla bocca |
+| Fortezza delle Serpi | 2 km a nord-est, piana a 34 m | torre nera affusolata alta 186 m, un serpente che la avvolge per tre giri e si alza sopra la punta, 4 torri con teste di cobra, mura ottagonali | pietra nera, serpente verde oliva, zanne bianche | anelli, finestre e porta rosso brace, occhi verdi, fulmini |
 
 Nomi provvisori dei personaggi: Re Tancredi, Maga Selene, Lord Vipero. Si cambiano quando Tancredi sceglie i suoi.
 
 ## 3. Atmosfera
 
-- Tramonto basso (sole a 6 gradi, da ovest-nord-ovest): arancio bruciato sull'orizzonte, viola in alto e dalla parte
-  opposta al sole.
+- Tramonto basso (sole a 6 gradi, da ovest-nord-ovest): arancio bruciato sull'orizzonte, blu acciaio in alto e
+  dalla parte opposta al sole. Niente rosa e niente lilla: la palette è da cavaliere, non da principessa.
 - Nuvole più numerose e più drammatiche di Atlantis.
 - Fulmini a intervalli sopra la Fortezza delle Serpi, con lampi che illuminano la piana.
-- Il castello del re resta luminoso e "buono": bianco, azzurro, oro.
-- La Rocca d'Avorio è misteriosa ma non cattiva: luce fredda, azzurra e viola.
-- La Fortezza delle Serpi è il lato scuro: nero, viola, verde veleno.
+- Il castello del re è solido e "buono": pietra grigia, ardesia, oro, finestre calde.
+- La Rocca d'Avorio è misteriosa ma non cattiva: luce fredda, azzurra, tetti blu scuro.
+- La Fortezza delle Serpi è il lato scuro: nero, verde oliva, rosso brace.
 
 ## 4. Musica
 

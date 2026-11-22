@@ -290,9 +290,9 @@ fn skyLut(d: vec3f) -> vec3f {
   // pearl just above the horizon, warming to cream and gold (and higher) towards the low sun
   let ts = ss(-.35, .95, dot(d.xz / max(length(d.xz), 1e-4), normalize(view.sun.xz)));
   let l = lum(c); c = mix(c, vec3f(l) * mix(vec3f(1.03, 1., .99), vec3f(1.2, 1., .72), ts) * 1.12, mix(.8, .9, ts) * (1. - ss(0., mix(.16, .3, ts), abs(d.y))));
-  // Tancredi's sky: violet overhead and away from the sun, a burning orange band towards it
+  // Tancredi's sky: stormy steel blue overhead and away from the sun, a burning orange band towards it
   let up = sat(d.y * 1.8);
-  c *= mix(vec3f(1.), vec3f(1.02, .7, 1.3), up * (.45 + .55 * (1. - ts)));
+  c *= mix(vec3f(1.), vec3f(.82, .86, 1.02), up * (.45 + .55 * (1. - ts)));
   c *= mix(vec3f(1.), vec3f(1.3, .82, .5), ts * ts * (1. - ss(0., .3, abs(d.y))));
   return c;
 }

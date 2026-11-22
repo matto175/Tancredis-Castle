@@ -1,8 +1,8 @@
 # Tancredi's Castle
 
-Una città fantasy da esplorare in volo nel browser: al centro il castello bianco e azzurro del re Tancredi, a
+Una città fantasy da esplorare in volo nel browser: al centro il castello di pietra grigia del re Tancredi, a
 nord-ovest la Rocca d'Avorio a forma di teschio cornuto, a nord-est la Fortezza delle Serpi sotto i fulmini. Tramonto
-viola e arancio e musica eroica a 8 bit, tutto originale.
+arancio sotto un cielo blu acciaio e musica eroica a 8 bit, tutto originale.
 
 **Si apre con Chrome o Edge su computer** (serve WebGPU): https://matto175.github.io/Tancredis-Castle/
 

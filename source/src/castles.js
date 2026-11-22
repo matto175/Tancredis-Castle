@@ -6,7 +6,8 @@
 //   keep, cobra-head spires, green light
 // Colours of ROOF and GLOW come from the vertex parameters (ea, eb, ec = sqrt of linear rgb), so one mesh can carry
 // several. Never give MARBLE ec = 255 (the shader would make it hover like the old podium crystals).
-const AZURE = [0.28, 0.5, 0.95], VIOLET = [0.6, 0.38, 0.9], WARM = [1, 0.78, 0.45], CYAN = [0.55, 0.95, 1], VENOM = [0.55, 1, 0.3];
+// heroic palette: grey granite, dark slate roofs, gold points; the sorceress's deep blue; the serpent lord's black, olive and ember red
+const AZURE = [0.24, 0.27, 0.32], VIOLET = [0.2, 0.3, 0.52], WARM = [1, 0.74, 0.38], CYAN = [0.55, 0.95, 1], VENOM = [0.55, 1, 0.3], EMBER = [1, 0.32, 0.1];
 const col = (mb, c) => { mb.ea = round(c[0] * 254); mb.eb = round(c[1] * 254); mb.ec = round(c[2] * 254); };
 const nocol = (mb) => { mb.ea = mb.eb = mb.ec = 0; };
 // ellipsoid at (cx, cy, cz) with radii rx, ry, rz (direct vertices, so it works under a frame `fr`)
@@ -21,7 +22,7 @@ function blob(mb, cx, cy, cz, rx, ry, rz, seg = 20) {
 // round tower at (x, z) from y0, radius R, wall height H, crenellated top, cone of roofH in colour c, gold point;
 // glowing windows wc (or none). Returns the height of its tip.
 function tower(mb, x, z, y0, R, H, roofH, c, wc, opt = {}) {
-  const wall = opt.wall === undefined ? M.MARBLE : opt.wall, trim = opt.trim === undefined ? M.TRIM : opt.trim, seg = opt.seg || 20;
+  const wall = opt.wall === undefined ? M.ROCK : opt.wall, trim = opt.trim === undefined ? M.ROCK : opt.trim, seg = opt.seg || 20;
   nocol(mb);
   const yt = y0 + H, cr = R + 0.9;
   mb.lathe([[R * 1.12, y0 - 1, wall], [R * 1.12, y0 + 2, wall], [R, y0 + 3.2, wall], [R, yt, trim], [cr, yt + 1.1, trim], [cr, yt + 1.6, trim]], { seg, cx: x, cz: z });
@@ -60,11 +61,11 @@ function ringWall(mb, R, T, y0, H, mat, trim, n = 0) {
 const KING = { wall: 37.5, keep: 18 };
 function meshKingCastle() {
   const mb = new MB(1 << 17), Y = 40;
-  ringWall(mb, KING.wall, 3, Y, 15, M.MARBLE, M.TRIM);
+  ringWall(mb, KING.wall, 3, Y, 15, M.ROCK, M.ROCK);
   // six gatehouses on the spokes: a gold door, two flanking towers
   for (let k = 0; k < 6; k++) {
     const a = SPOKES[k], c = cos(a), s = sin(a), tx = -s, tz = c, R = KING.wall + 1.2;
-    mb.mat = M.MARBLE; nocol(mb);
+    mb.mat = M.ROCK; nocol(mb);
     const gx = R * c, gz = R * s, P = (u, w) => [gx + c * u + tx * w, gz + s * u + tz * w];
     // gatehouse block (axis-aligned boxes would not follow the spoke: build it as a quad prism)
     const prism = (u0, u1, w, y0, y1, mat) => {
@@ -72,16 +73,16 @@ function meshKingCastle() {
       for (let i = 0; i < 4; i++) { const A = q[i], B = q[(i + 1) % 4], nx = B[1] - A[1], nz = A[0] - B[0], l = hypot(nx, nz); mb.quad(mb.v(A[0], y0, A[1], -nx / l, 0, -nz / l), mb.v(B[0], y0, B[1], -nx / l, 0, -nz / l), mb.v(B[0], y1, B[1], -nx / l, 0, -nz / l), mb.v(A[0], y1, A[1], -nx / l, 0, -nz / l)); }
       mb.poly(q.map((p) => [p[0], y1, p[1]]), [0, 1, 0]);
     };
-    prism(-4.5, 3, 6, Y - 1, Y + 19, M.MARBLE);
+    prism(-4.5, 3, 6, Y - 1, Y + 19, M.ROCK);
     col(mb, [0.55, 0.36, 0.2]); prism(3, 3.25, 3.2, Y, Y + 8.5, M.ROOF); nocol(mb); // the door: oak planks
-    prism(3, 3.35, 3.8, Y + 8.5, Y + 9.3, M.TRIM);
+    prism(3, 3.35, 3.8, Y + 8.5, Y + 9.3, M.ROCK);
     for (const w of [-7.2, 7.2]) { const p = P(0, w); tower(mb, p[0], p[1], Y, 3.6, 25, 12, AZURE, WARM, { wa: a }); }
   }
   // inner court: six towers between the gates
   for (let k = 0; k < 6; k++) { const a = SPOKES[k] + PI / 6; tower(mb, 27 * cos(a), 27 * sin(a), Y, 4, 36, 15, AZURE, WARM, { wa: a }); }
   // the keep: an octagonal hall, four corner towers, the great tower, its spire
   nocol(mb);
-  mb.lathe([[KING.keep + 1, Y - 1, M.MARBLE], [KING.keep + 1, Y + 2, M.MARBLE], [KING.keep, Y + 3, M.MARBLE], [KING.keep, Y + 30, M.TRIM], [KING.keep + 0.8, Y + 30.8, M.TRIM], [KING.keep + 0.8, Y + 31.6, M.TRIM], [KING.keep - 1, Y + 31.6, M.MARBLE], [KING.keep - 1, Y + 32, M.MARBLE]], { seg: 8, flat: true, a0: PI / 8, a1: PI / 8 + TAU });
+  mb.lathe([[KING.keep + 1, Y - 1, M.ROCK], [KING.keep + 1, Y + 2, M.ROCK], [KING.keep, Y + 3, M.ROCK], [KING.keep, Y + 30, M.ROCK], [KING.keep + 0.8, Y + 30.8, M.ROCK], [KING.keep + 0.8, Y + 31.6, M.ROCK], [KING.keep - 1, Y + 31.6, M.ROCK], [KING.keep - 1, Y + 32, M.ROCK]], { seg: 8, flat: true, a0: PI / 8, a1: PI / 8 + TAU });
   col(mb, AZURE); mb.lathe([[KING.keep - 1, Y + 32, M.ROOF], [9.5, Y + 40, M.ROOF], [8.5, Y + 40.5, M.ROOF]], { seg: 8, flat: true, a0: PI / 8, a1: PI / 8 + TAU }); nocol(mb);
   // tall arched windows of the hall
   col(mb, WARM); mb.mat = M.GLOW;
@@ -154,7 +155,7 @@ function meshSerpentFortress() {
     // cobra head over each spire: a neck rising and bending outwards
     const pts = []; for (let i = 0; i <= 10; i++) { const t = i / 10; pts.push([x + cos(a) * 9 * t * t, 66 + 26 * sin(t * 1.4), z + sin(a) * 9 * t * t, 2.6 - 0.6 * t]); }
     sn.tube(pts, 10, false); heads.push([pts[10][0], pts[10][1], pts[10][2], a, 1]);
-    for (let j = 0; j < 3; j++) { const ya = 18 + j * 15, wa = a + PI + (j - 1) * 0.5; col(lt, VENOM); lt.mat = M.GLOW; const wx = cos(wa), wz = sin(wa), r = mix(7.5, 6, (ya - 8) / 54) + 0.1, px = x + wx * r, pz = z + wz * r; const v = (s, h) => lt.v(px - wz * s * 0.5, ya + h, pz + wx * s * 0.5, wx, 0, wz); lt.quad(v(-1, 0), v(1, 0), v(1, 3), v(-1, 3)); }
+    for (let j = 0; j < 3; j++) { const ya = 18 + j * 15, wa = a + PI + (j - 1) * 0.5; col(lt, EMBER); lt.mat = M.GLOW; const wx = cos(wa), wz = sin(wa), r = mix(7.5, 6, (ya - 8) / 54) + 0.1, px = x + wx * r, pz = z + wz * r; const v = (s, h) => lt.v(px - wz * s * 0.5, ya + h, pz + wx * s * 0.5, wx, 0, wz); lt.quad(v(-1, 0), v(1, 0), v(1, 3), v(-1, 3)); }
   }
   // the great serpent: coils up the keep and rears over it, looking towards the city (+x)
   const body = [], turns = 3.25, N = 160;
@@ -173,22 +174,22 @@ function meshSerpentFortress() {
     sn.fr = null;
     lt.fr = [x, y, z, c, -s, k]; lt.mat = M.TRIM; nocol(lt);
     for (const w of [-0.9, 0.9]) lt.tube([[5.2, -0.1, w, 0.35], [5.4, -1.2, w, 0.25], [5.5, -1.9, w, 0.05]], 6);
-    lt.mat = M.GLOW; col(lt, VENOM); for (const w of [-1.1, 1.1]) blob(lt, 4.2, 1.2, w, 0.55, 0.45, 0.45, 10);
+    lt.mat = M.GLOW; col(lt, EMBER); for (const w of [-1.1, 1.1]) blob(lt, 4.2, 1.2, w, 0.55, 0.45, 0.45, 10);
     lt.fr = null; nocol(lt);
   }
   // green bands of light round the keep, windows
-  lt.mat = M.GLOW; col(lt, VENOM);
+  lt.mat = M.GLOW; col(lt, EMBER);
   for (const y of [40, 80, 118]) { const r = keepR(y) + 0.08; lt.lathe([[r + 0.05, y], [r + 0.05, y + 1.1]], { seg: 12, flat: true }); }
   nocol(lt);
   // a gate of glowing teeth towards the swamp and the city
   st.mat = M.ROCK; st.box(86, 0, -9, 98, 24, 9, 1);
-  lt.mat = M.GLOW; col(lt, VENOM); lt.box(97.9, 0, -4.5, 98.4, 11, 4.5, 0.1); nocol(lt);
+  lt.mat = M.GLOW; col(lt, EMBER); lt.box(97.9, 0, -4.5, 98.4, 11, 4.5, 0.1); nocol(lt);
   lt.mat = M.TRIM; for (let i = -3; i <= 3; i++) lt.lathe([[0.7, 0], [0, -3]], { seg: 6, cx: 98.6, cy: 12, cz: i * 1.3 });
   return { stone: st.build(), snake: sn.build(), light: lt.build() };
 }
 // glowing swamp: a flat irregular disc
 function meshSwamp(R) {
-  const mb = new MB(1 << 12); mb.mat = M.GLOW; col(mb, [0.1, 0.22, 0.07]);
+  const mb = new MB(1 << 12); mb.mat = M.GLOW; col(mb, [0.07, 0.16, 0.05]);
   const c = mb.v(0, 0, 0, 0, 1, 0), n = 64, ring = [];
   for (let i = 0; i < n; i++) { const a = i / n * TAU, r = R * (1 + 0.18 * sin(3 * a + 1) + 0.1 * sin(7 * a + 2)); ring.push(mb.v(r * cos(a) * 1.6, 0, r * sin(a), 0, 1, 0)); }
   for (let i = 0; i < n; i++) mb.tri(c, ring[i], ring[(i + 1) % n]);
@@ -198,18 +199,18 @@ function meshSwamp(R) {
 // placing everything (world.js). gH: the land mesh's height. Faces: towards the city centre.
 function placeCastles(type, put, gH) {
   const king = meshKingCastle();
-  put(type([king.mesh], K.SOLID), 0, 0, 0);
+  put(type([king.mesh], K.SOLID), 0, 0, 0, 1, Q0, rgb(0.64, 0.64, 0.63));
   const tw = [40, 46, 36].map((h) => type([meshWatchTower(h)], K.SOLID));
-  for (let k = 0; k < 6; k++) put(tw[k % 3], TOWER_R * cos(TOWERS[k]), 0, TOWER_R * sin(TOWERS[k]), 1, qYaw(k * 0.4));
+  for (let k = 0; k < 6; k++) put(tw[k % 3], TOWER_R * cos(TOWERS[k]), 0, TOWER_R * sin(TOWERS[k]), 1, qYaw(k * 0.4), rgb(0.64, 0.64, 0.63));
   const face = (F) => qYaw(-atan2(-F[1], -F[0]));
   const rk = meshIvoryRock(), yR = ROCCA[4] - 1.5, qR = face(ROCCA);
-  put(type([rk.bone], K.SOLID), ROCCA[0], yR, ROCCA[1], 1, qR, rgb(1, 0.96, 0.86));
+  put(type([rk.bone], K.SOLID), ROCCA[0], yR, ROCCA[1], 1, qR, rgb(0.86, 0.84, 0.76));
   put(type([rk.dark], K.SOLID), ROCCA[0], yR, ROCCA[1], 1, qR, rgb(0.12, 0.1, 0.13));
   put(type([rk.mag], K.SOLID), ROCCA[0], yR, ROCCA[1], 1, qR);
-  put(type([rk.horn], K.SOLID), ROCCA[0], yR, ROCCA[1], 1, qR, rgb(0.78, 0.66, 0.5));
+  put(type([rk.horn], K.SOLID), ROCCA[0], yR, ROCCA[1], 1, qR, rgb(0.5, 0.36, 0.22));
   const sf = meshSerpentFortress(), yS = SERPI[4] - 0.8, qS = face(SERPI);
-  put(type([sf.stone], K.SOLID), SERPI[0], yS, SERPI[1], 1, qS, rgb(0.13, 0.12, 0.2));
-  put(type([sf.snake], K.SOLID), SERPI[0], yS, SERPI[1], 1, qS, rgb(0.3, 0.6, 0.26));
+  put(type([sf.stone], K.SOLID), SERPI[0], yS, SERPI[1], 1, qS, rgb(0.07, 0.08, 0.12));
+  put(type([sf.snake], K.SOLID), SERPI[0], yS, SERPI[1], 1, qS, rgb(0.15, 0.3, 0.12));
   put(type([sf.light], K.SOLID), SERPI[0], yS, SERPI[1], 1, qS);
   const sw = [SERPI[0] - 200, SERPI[1] + 250];
   put(type([meshSwamp(60)], K.SOLID), sw[0], SERPI[4] + 0.35, sw[1], 1, qYaw(0.5));

@@ -3,17 +3,17 @@
 <head>
 <meta charset=utf-8>
 <title>Tancredi's Castle</title>
-<!-- Based on Atlantis by Maksymilian Dendura (github.com/Noniv/atlantis), MIT License. Modified as "Tancredi's Castle": a new world of original castles (castles.js), sunset sky with lightning, original heroic music, blue and gold interface, Italian text. -->
+<!-- Based on Atlantis by Maksymilian Dendura (github.com/Noniv/atlantis), MIT License. Modified as "Tancredi's Castle": a new world of original castles (castles.js), sunset sky with lightning, original heroic music, iron and bronze interface, Italian text. -->
 <meta name=viewport content="width=device-width,initial-scale=1">
-<meta name=theme-color content=#0b1433>
+<meta name=theme-color content=#14171c>
 <style>
 /* The class on <body> is the state of the page: l = loading, m = menu, g = in the scene (g p while the mouse is captured),
-   l e = failed to start. Palette: marble #f2eadb, gold #ffc94a, royal night blue #0b1433 */
-html { background: #0b1433; }
+   l e = failed to start. Palette: marble #f2eadb, bronze #d9963a, iron grey #14171c */
+html { background: #14171c; }
 body {
   --x: max(6vw, 2em); --cut: polygon(.6em 0, 100% 0, 100% calc(100% - .6em), calc(100% - .6em) 100%, 0 100%, 0 .6em);
-  --gold: linear-gradient(#fff1c4, #ffc94a 45%, #d68a1f);
-  position: fixed; inset: 0; margin: 0; overflow: hidden; background: radial-gradient(at 65%, #24407a, #0b1433 75%);
+  --gold: linear-gradient(#f6d9a8, #d9963a 45%, #9c5a1c);
+  position: fixed; inset: 0; margin: 0; overflow: hidden; background: radial-gradient(at 65%, #3a3f47, #14171c 75%);
   font: 700 clamp(13px, .6vw + .8vh, 26px)/1.4 system-ui, sans-serif; color: #f2eadb; user-select: none;
 }
 /* a phone held upright gets the whole page turned on its side, so the scene is always landscape */
@@ -27,55 +27,55 @@ body:not(.g) canvas { filter: blur(.4vmax) brightness(.75); }
 /* menu: one column on the left as wide as the name, over a shade that leaves the city visible on the right */
 #m {
   position: absolute; inset: 0; display: grid; align-content: center; justify-content: start; padding: 0 var(--x) 3em;
-  background: linear-gradient(90deg, #0b1433cc, #0b143300 65%); transition: opacity .5s, visibility .5s;
+  background: linear-gradient(90deg, #14171ccc, #14171c00 65%); transition: opacity .5s, visibility .5s;
 }
 .g #m, .m #s, .l #g, .l #k, .l #h { opacity: 0; visibility: hidden; }
 h1, #d, #q { font-family: "Palatino Linotype", Palatino, "Book Antiqua", Constantia, Georgia, serif; text-transform: uppercase; }
 h1 {
   margin: 0 -.12em 0 0; font-size: 4.8em; line-height: 1; letter-spacing: .12em; color: #0000; background: var(--gold);
-  -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 .03em 0 #0b1433) drop-shadow(0 .08em .25em #000c);
+  -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 .03em 0 #14171c) drop-shadow(0 .08em .25em #000c);
 }
 /* the gold line under the name is the loading bar */
-#p { height: 3px; margin: .5em 0 1.6em; background: #ffc94a40; }
-#b { display: block; height: 100%; background: #ffc94a; box-shadow: 0 0 .8em #ffc94a; transform: scaleX(0); transform-origin: 0; transition: transform .4s; }
+#p { height: 3px; margin: .5em 0 1.6em; background: #d9963a40; }
+#b { display: block; height: 100%; background: #d9963a; box-shadow: 0 0 .8em #d9963a; transform: scaleX(0); transform-origin: 0; transition: transform .4s; }
 .e #p { visibility: hidden; }
 p { margin: 0; }
 #a { display: grid; }
 #a > * { grid-area: 1/1; transition: opacity .8s, visibility .8s; }
-#s { font-size: .85em; letter-spacing: .15em; text-transform: uppercase; color: #ffc94a; }
+#s { font-size: .85em; letter-spacing: .15em; text-transform: uppercase; color: #d9963a; }
 .e #s { letter-spacing: 0; text-transform: none; color: #f2eadb; }
 
 button, a { padding: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-decoration: none; cursor: pointer; }
-:focus-visible { outline: 2px solid #fff1c4; outline-offset: .2em; }
+:focus-visible { outline: 2px solid #f6d9a8; outline-offset: .2em; }
 #g { display: grid; gap: .8em; }
 /* plates with cut corners: a gold frame (the plate) around a dark face (::before) */
 #d, #q, #q .on, #f a { clip-path: var(--cut); }
 #d, #q, #f a { position: relative; isolation: isolate; background: var(--gold); }
-#d::before, #q::before, #f a:first-child::before { content: ''; position: absolute; inset: 2px; z-index: -1; clip-path: var(--cut); background: linear-gradient(#1d2f5e, #0b1433); }
+#d::before, #q::before, #f a:first-child::before { content: ''; position: absolute; inset: 2px; z-index: -1; clip-path: var(--cut); background: linear-gradient(#2a2f36, #14171c); }
 /* Enter: the selected entry, lit gold, with an engraved line inside its frame */
-#d { padding: .7em; font-size: 1.6em; letter-spacing: .25em; text-indent: .25em; color: #0b1433; transition: filter .15s; }
-#d::before { inset: .22em; z-index: 0; background: none; box-shadow: inset 0 0 0 1px #0b143359; }
+#d { padding: .7em; font-size: 1.6em; letter-spacing: .25em; text-indent: .25em; color: #14171c; transition: filter .15s; }
+#d::before { inset: .22em; z-index: 0; background: none; box-shadow: inset 0 0 0 1px #14171c59; }
 #d:hover, #f a:hover { filter: brightness(1.12); }
 #d:active { filter: brightness(.95); }
-#d:focus-visible { outline-color: #0b1433; outline-offset: -.35em; }
+#d:focus-visible { outline-color: #14171c; outline-offset: -.35em; }
 /* detail level: three segments, the current one lit, the others reload the page with theirs */
 #q { display: flex; align-items: center; gap: .3em; padding: .35em; font-size: 1.05em; letter-spacing: .12em; }
-#q span { padding: 0 .8em 0 .6em; color: #ffc94a; }
+#q span { padding: 0 .8em 0 .6em; color: #d9963a; }
 #q button { flex: 1; padding: .55em .2em; color: #f2eadbb3; transition: background .15s, color .15s; }
-#q button:hover { background: #ffc94a2e; color: #f2eadb; }
-#q .on { background: var(--gold); color: #0b1433; pointer-events: none; }
+#q button:hover { background: #d9963a2e; color: #f2eadb; }
+#q .on { background: var(--gold); color: #14171c; pointer-events: none; }
 
 /* the hint bar along the bottom: controls on the left, GitHub and Ko-fi on the right */
 #r {
   position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 1em 1.5em; padding: .55em var(--x);
-  background: #0b1433d9; box-shadow: 0 -1px #ffc94a66; font-size: .85em; color: #f2eadbd9;
+  background: #14171cd9; box-shadow: 0 -1px #d9963a66; font-size: .85em; color: #f2eadbd9;
 }
 /* when the controls or the hint need two lines, the lines come out even */
 #k, #h { text-wrap: balance; transition: opacity .8s, visibility .8s; }
 #k span { display: inline-flex; align-items: center; gap: .25em; margin: .2em 1.1em .2em 0; }
 #k b {
-  min-width: 1.1em; padding: .15em .4em; border-radius: .2em; background: #f2eadb; box-shadow: inset 0 -.18em #0b14334d;
-  color: #0b1433; text-align: center;
+  min-width: 1.1em; padding: .15em .4em; border-radius: .2em; background: #f2eadb; box-shadow: inset 0 -.18em #14171c4d;
+  color: #14171c; text-align: center;
 }
 #k b:last-of-type { margin-right: .35em; }
 #h { display: none; }
@@ -89,7 +89,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 /* in the scene: a small menu button (hidden while the mouse is captured, Esc does the same) and the stats panel */
 #o {
   position: absolute; top: .8em; right: .8em; display: none; width: 2em; height: 2em; clip-path: var(--cut);
-  background: #0b1433cc; box-shadow: inset 0 0 0 2px #ffc94a; font-size: 1.3em; line-height: 1; color: #ffc94a;
+  background: #14171ccc; box-shadow: inset 0 0 0 2px #d9963a; font-size: 1.3em; line-height: 1; color: #d9963a;
 }
 .g #o { display: block; }
 .p #o { display: none; }
