@@ -62,6 +62,7 @@ struct View {
   misc: vec4f, // 1 = drop TAA history, view kind (0 main, 1 mirror, 2 shadow), lod scale, wind on/off
   lodc: vec4f, // LOD reference point; w: 1 / the level's distance scale
   lodb: vec4f, // x: minimum LOD distance (baked maps on Medium/Low: never the finest)
+  ev: vec4f, // events (Tancredi's Castle): storm 0-1, seconds into the dragon's flight, seconds into the sea battle (< 0: off), the fleets' presence 0-1
 }
 `;
 // full-screen triangle
@@ -286,7 +287,7 @@ fn skyLut(d: vec3f) -> vec3f {
   let az = atan2(d.z, d.x) - atan2(view.sun.z, view.sun.x); let el = asin(clamp(d.y, -1., 1.));
   let uv = vec2f(az / (2. * PI) + .5, clamp(.5 + .5 * sign(el) * sqrt(abs(el) / (PI * .5)), .004, .996));
   // lifted towards the zenith (single scattering alone is too dark overhead)
-  var c = textureSampleLevel(tSky, sRep, uv, 0.).rgb * E0 * mix(1., 1.8, sat(d.y * 1.4) * (1. - ss(.5, .97, dot(d, view.sun.xyz))));
+  var c = textureSampleLevel(tSky, sRep, uv, 0.).rgb * E0 * ${SUNK} * select(vec3f(1.), vec3f(.55, .75, 1.3), ${NIGHT} == 1) * mix(1., 1.8, sat(d.y * 1.4) * (1. - ss(.5, .97, dot(d, view.sun.xyz))));
   // pearl just above the horizon, warming to cream and gold (and higher) towards the low sun
   let ts = ss(-.35, .95, dot(d.xz / max(length(d.xz), 1e-4), normalize(view.sun.xz)));
   let l = lum(c); c = mix(c, vec3f(l) * mix(vec3f(1.03, 1., .99), vec3f(1.2, 1., .72), ts) * 1.12, mix(.8, .9, ts) * (1. - ss(0., mix(.16, .3, ts), abs(d.y))));
@@ -294,6 +295,8 @@ fn skyLut(d: vec3f) -> vec3f {
   let up = sat(d.y * 1.8);
   c *= mix(vec3f(1.), vec3f(.82, .86, 1.02), up * (.45 + .55 * (1. - ts)));
   c *= mix(vec3f(1.), vec3f(1.3, .82, .5), ts * ts * (1. - ss(0., .3, abs(d.y))));
+  // at night no warm band: moonlit blue all round, a little paler at the horizon
+  if (${NIGHT} == 1) { c = lum(c) * mix(vec3f(.4, .6, 1.5), vec3f(.62, .75, 1.2), 1. - ss(0., .25, abs(d.y))); }
   return c;
 }
 // small cumulus on a flat layer 1.7 km up; lit sunward, grey-blue below
@@ -303,7 +306,7 @@ fn clouds(rd: vec3f, base: vec3f) -> vec3f {
   let q = p / 3400.;
   let sh = textureSampleLevel(tNoiseA, sRep, q * .23 + .21, 0.).r;
   let n = textureSampleLevel(tNoiseA, sRep, q, 0.).r * .62 + textureSampleLevel(tNoiseA, sRep, q * 3.1 + .4, 0.).r * .38;
-  let cov = .56 - .12 * ss(.4, .62, sh);
+  let st = view.ev.x; let cov = .56 - .12 * ss(.4, .62, sh) - .42 * st;
   // puffs: a firm edge eaten by finer noise
   let dn = ss(cov, cov + .07, n - .05 * textureSampleLevel(tNoiseA, sRep, q * 9.7, 0.).a);
   if (dn <= 0.) { return base; }
@@ -313,7 +316,9 @@ fn clouds(rd: vec3f, base: vec3f) -> vec3f {
   let mu = dot(rd, view.sun.xyz);
   let warm = view.sunc.rgb * (.13 + .5 * pow(sat(mu), 6.));
   let cool = skyLut(vec3f(-view.sun.x, .9, -view.sun.z)) * 1.5;
-  let col = mix(cool, warm + cool * .6, lit);
+  var col = mix(cool, warm + cool * .6, lit);
+  // storm: low slate-grey clouds over the castle, lit from inside by the lightning
+  if (st > 0.) { col = mix(col, vec3f(lum(col)) * vec3f(.3, .32, .38), st) + vec3f(.75, .75, 1.) * flashK() * st * ${(E0*0.03).toFixed(3)} * (1.2 - lit); }
   let far = exp(-t / 26000.);
   return mix(base, col, dn * .93 * far * ss(.012, .05, rd.y));
 }
@@ -324,6 +329,27 @@ fn flash() -> f32 {
   let t = view.cam.w; let k = floor(t / 5.3); let f = t - k * 5.3;
   if (h11(k * 1.7 + .3) < .45 || t < 1.) { return 0.; }
   return exp(-f * 9.) + .8 * exp(-abs(f - .22) * 28.) + .5 * exp(-abs(f - .41) * 30.);
+}
+// storm over the king's castle (key T, view.ev.x): strokes every 2.6 s, most of them striking the great tower's
+// spire, the others the towers around it. Mirrored by stormBolt() in main.js for the thunder.
+fn flashK() -> f32 {
+  let t = view.cam.w; let k = floor(t / 2.6); let f = t - k * 2.6;
+  if (view.ev.x < .3 || h11(k * 3.1 + .7) < .2) { return 0.; }
+  return (exp(-f * 8.) + .7 * exp(-abs(f - .18) * 26.) + .4 * exp(-abs(f - .37) * 30.)) * ss(.3, .7, view.ev.x);
+}
+fn boltK(rd: vec3f) -> vec3f {
+  let fl = flashK(); if (fl < .01) { return vec3f(0.); }
+  let k = floor(view.cam.w / 2.6); let a = h11(k * 7.7 + .2) * 6.2832; let tw = h11(k * 2.3 + .9) < .55;
+  let tx = select(vec2f(cos(a), sin(a)) * 33., vec2f(0.), tw);
+  let to = tx - view.cam.xz; let dist = max(length(to), 30.); let fd = to / dist; let h = normalize(rd.xz);
+  let ang = atan2(fd.x * h.y - fd.y * h.x, dot(fd, h)); let el = rd.y * inverseSqrt(max(1. - rd.y * rd.y, 1e-4));
+  let base = (select(95., 157., tw) - view.cam.y) / dist; let top = (1100. - view.cam.y) / dist;
+  let u = (el - base) / (top - base);
+  let jag = (sin(u * 19. + k * 7.) * .4 + sin(u * 61. + k) * .15) * (1. - u * .6);
+  let off = jag * 22. / dist; let w = 1.4 / dist + .0006;
+  let s = select(0., exp(-sq((ang - off) / w)), u > 0. && u < 1.);
+  let glow = vec3f(.75, .75, 1.) * fl * 3.5 * exp(-ang * ang * 30.) * ss(base - .2, base + .8, el);
+  return (glow + vec3f(.9, .88, 1.) * fl * 1100. * s) * ${NIGHT ? 0.6 : 1};
 }
 fn bolts(rd: vec3f) -> vec3f {
   let fl = flash(); if (fl < .01) { return vec3f(0.); }
@@ -337,16 +363,28 @@ fn bolts(rd: vec3f) -> vec3f {
   let off = .022 * (h11(k * 5.3) - .5) + jag * 18. / dist;
   let w = 1.2 / dist + .0006;
   let s = select(0., exp(-sq((ang - off) / w)), u > 0. && u < 1.);
-  return glow + vec3f(.9, .85, 1.) * fl * 900. * s;
+  return (glow + vec3f(.9, .85, 1.) * fl * 900. * s) * ${NIGHT ? 0.6 : 1};
+}
+// stars at night: a hashed grid of directions, fading near the horizon
+fn stars(rd: vec3f) -> vec3f {
+  if (${NIGHT} == 0 || rd.y < .02) { return vec3f(0.); }
+  let g = floor(rd * 700.); let h = h21(vec2f(g.x + g.z * 61.7, g.y + g.z * 3.3));
+  let k = ss(.9965, 1., h); return vec3f(.85, .9, 1.) * k * k * ${(E0 * 0.05).toFixed(4)} * ss(.02, .2, rd.y);
 }
 fn sky(rd: vec3f, disc: bool) -> vec3f {
-  var c = skyLut(rd) + bolts(rd);
+  var c = (skyLut(rd) + stars(rd)) * (1. - .75 * view.ev.x) + bolts(rd);
   if (disc) {
     // disc and a soft round glare, no rays
     let mu = sat(dot(rd, view.sun.xyz));
     c += min(view.sunc.rgb * 900., vec3f(260.)) * ss(.99996, .999975, mu) + view.sunc.rgb * (pow(mu, 9000.) * 2.5 + pow(mu, 1800.) * .25 + pow(mu, 250.) * .02);
   }
-  return clouds(rd, c);
+  if (${NIGHT} == 1) {
+    // the moon: a large pale disc with soft grey seas, and a faint halo
+    let mu = sat(dot(rd, view.sun.xyz)); let mo = ss(.99974, .9998, mu);
+    let sea = .84 + .16 * sin(rd.x * 520. + 1.) * sin(rd.z * 430. + rd.y * 300.);
+    c += vec3f(.9, .93, 1.) * ${(E0 * 0.35).toFixed(4)} * mo * sea + vec3f(.5, .6, .9) * ${(E0 * 0.004).toFixed(4)} * pow(mu, 600.);
+  }
+  return clouds(rd, c) + boltK(rd);
 }
 `;
 

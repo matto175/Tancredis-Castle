@@ -46,7 +46,7 @@
   const NE = ev.length, ES = new Int16Array(NE), EV = new Uint8Array(NE), EL = new Uint8Array(NE), EF = new Float32Array(NE), EA = new Float32Array(NE);
   ev.forEach((e, i) => { ES[i] = e[0]; EV[i] = e[1]; EF[i] = 440 * 2 ** ((e[2] - 69) / 12); EL[i] = e[3]; EA[i] = e[4]; });
 
-  let ctx = null, out, osc, amp, vib, timer = 0, off = 0, t0 = 0, n = 0, i = 0, muted = false;
+  let ctx = null, out, osc, amp, vib, timer = 0, off = 0, t0 = 0, n = 0, i = 0, muted = false, nbuf = null;
   try { muted = localStorage.atlantisMute === '1'; } catch {}
 
   // one note: pitch set while the voice is silent (every envelope ends at zero before the next note starts), then
@@ -91,7 +91,7 @@
     for (let h = 1; h < 64; h++) re[h] = Math.sin(Math.PI * h * 0.25) * 2 / (Math.PI * h);
     osc = [new OscillatorNode(ctx, { periodicWave: new PeriodicWave(ctx, { real: re, imag: im }) }), new OscillatorNode(ctx, { type: 'square' }), new OscillatorNode(ctx, { type: 'triangle' })];
     // shimmer: two seconds of looped white noise, band-passed around 4 kHz
-    const nb = new AudioBuffer({ length: 2 * ctx.sampleRate, sampleRate: ctx.sampleRate }), nd = nb.getChannelData(0);
+    const nb = new AudioBuffer({ length: 2 * ctx.sampleRate, sampleRate: ctx.sampleRate }), nd = nb.getChannelData(0); nbuf = nb;
     for (let k = 0, s = 1; k < nd.length; k++) { s = (Math.imul(s, 1664525) + 1013904223) | 0; nd[k] = s / 2147483648; }
     const noise = new AudioBufferSourceNode(ctx, { buffer: nb, loop: true }), bp = new BiquadFilterNode(ctx, { type: 'bandpass', frequency: 4000, Q: 0.8 });
     noise.connect(bp);
@@ -114,6 +114,26 @@
       out.gain.setTargetAtTime(0, now, 0.03);
       off = setTimeout(() => { if (muted || document.hidden) { ctx.suspend(); clearInterval(timer); timer = 0; } }, 300);
     }
+  };
+  // event sounds (main.js evSound): noise and oscillators made for each sound, through the master gain, so M mutes
+  // them too. K thunder, C a cannon's boom, G the dragon's roar, F its fire, V the king's horns
+  SFX.f = (k, d = 0) => {
+    if (!ctx || ctx.state !== 'running' || muted) return;
+    const t = ctx.currentTime + d, env = (g, a, at, dec) => { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + at); g.gain.exponentialRampToValueAtTime(1e-4, t + at + dec); };
+    const noise = (f0, f1, type, a, at, dec) => {
+      const n = new AudioBufferSourceNode(ctx, { buffer: nbuf, playbackRate: 0.7 + Math.random() * 0.4 }), f = new BiquadFilterNode(ctx, { type, frequency: f0, Q: 0.7 }), g = new GainNode(ctx);
+      f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + at + dec); env(g, a, at, dec);
+      n.connect(f); f.connect(g); g.connect(out); n.start(t, Math.random()); n.stop(t + at + dec + 0.1);
+    };
+    const tone = (type, f0, f1, a, at, dec) => {
+      const o = new OscillatorNode(ctx, { type, frequency: f0 }), g = new GainNode(ctx); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + at + dec);
+      env(g, a, at, dec); o.connect(g); g.connect(out); o.start(t); o.stop(t + at + dec + 0.1);
+    };
+    if (k === 'K') { noise(2200, 300, 'lowpass', 1.2, 0.01, 0.5); noise(260, 60, 'lowpass', 2.6, 0.12, 3.2); }
+    else if (k === 'C') { noise(900, 120, 'lowpass', 1.4, 0.005, 0.9); tone('sine', 70, 35, 1.2, 0.005, 0.5); }
+    else if (k === 'G') { tone('sawtooth', 150, 62, 0.35, 0.25, 1.6); tone('square', 113, 50, 0.18, 0.3, 1.5); noise(700, 250, 'bandpass', 1, 0.2, 1.6); }
+    else if (k === 'F') noise(500, 1800, 'bandpass', 1.6, 0.25, 3);
+    else if (k === 'V') { const n = [57, 64, 69, 69]; n.forEach((m, i) => { const f = 440 * 2 ** ((m - 69) / 12); const o = new OscillatorNode(ctx, { type: 'square', frequency: f }), g = new GainNode(ctx, { gain: 0 }); const s = t + i * 0.22; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.12, s + 0.02); g.gain.setValueAtTime(0.12, s + (i === 3 ? 0.7 : 0.16)); g.gain.linearRampToValueAtTime(0, s + (i === 3 ? 0.9 : 0.2)); o.connect(g); g.connect(out); o.start(s); o.stop(s + 1); }); }
   };
   const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'keydown'];
   const gesture = () => {

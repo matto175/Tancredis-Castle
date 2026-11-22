@@ -74,12 +74,12 @@ const waterBG = [0, 1, 2, 3, 4].map((m) => blitBG(mipView(tWater, m)));
 // main, mirror and shadow views each have a uniform block (struct View in sh_base.js)
 const NU = 216, V_MAIN = 0, V_MIR = 1, V_SH = 2;
 const UB = [0, 1, 2].map(() => new Float32Array(NU)), ubo = UB.map(() => device.createBuffer({ size: NU * 4, usage: BU.UNIFORM | BU.COPY_DST }));
-const O_SM = 48, O_CAM = 112, O_RES = 116, O_JIT = 120, O_SUN = 124, O_SUNC = 128, O_RIGHT = 132, O_UP = 136, O_FWD = 140, O_PL = 144, O_PULSE = 168, O_MISC = 172, O_LODC = 176, O_LODB = 180;
-const TANH = tan(30 * DEG), NEAR = 0.3, EXPO = 0.8;
+const O_SM = 48, O_CAM = 112, O_RES = 116, O_JIT = 120, O_SUN = 124, O_SUNC = 128, O_RIGHT = 132, O_UP = 136, O_FWD = 140, O_PL = 144, O_PULSE = 168, O_MISC = 172, O_LODC = 176, O_LODB = 180, O_EV = 184;
+const TANH = tan(30 * DEG), NEAR = 0.3, EXPO = EXPO_ORA;
 // sun at the ground: atmospheric transmittance x 1.35 (keeps sunlit paving warm rather than grey)
-const AT = atmo(), SUNC = AT.Ts.map((t) => t * E0 * 1.35);
+const AT = atmo(), SUNC = AT.Ts.map((t, i) => t * E0 * 1.35 * SUNK * (NIGHT ? [0.7, 0.85, 1.25][i] : 1));
 if (AUTO) console.log('sun at ground ' + SUNC.map((v) => v.toFixed(2)) + ' · psi ' + AT.PSI.map((v) => v.toFixed(4)));
-for (const U of UB) { U.set(SUN, O_SUN); U.set(SUNC, O_SUNC); U[O_SUNC + 3] = EXPO; U[O_MISC + 2] = 1; U[O_LODC + 3] = 1; }
+for (const U of UB) { U.set(SUN, O_SUN); U.set(SUNC, O_SUNC); U[O_SUNC + 3] = EXPO; U[O_MISC + 2] = 1; U[O_LODC + 3] = 1; U.set([0, -1, -1, 0], O_EV); }
 // camera matrices and frustum planes for a view at (cx, cy, cz), yaw / pitch
 function setCam(U, cx, cy, cz, yaw, pitch, W, H, jx, jy) {
   const cp = cos(pitch), fy = sin(pitch), rx = cos(yaw), rz = sin(yaw), fx = cp * rz, fz = -cp * rx;
@@ -399,6 +399,31 @@ addEventListener('resize', resize);
 const JIT = new Float32Array(32); // Halton (2, 3) sub-pixel offsets
 for (let i = 0; i < 16; i++) { const h = (n, b) => { let f = 1, r = 0; while (n > 0) { f /= b; r += f * (n % b); n = floor(n / b); } return r; }; JIT[i * 2] = h(i + 1, 2) - 0.5; JIT[i * 2 + 1] = h(i + 1, 3) - 0.5; }
 const PVP = new Float32Array(16), submitList = [null];
+// events (Tancredi's Castle): T storm over the castle (on/off, fades in and out), G the dragon's flight (DRAG_T s, again
+// from the start on a second press), V the sea battle (on/off; the fleets sail in, and fight in a BATTLE_T s loop).
+// Starting one jumps to the viewpoint that shows it best (EV_POSES in layout.js).
+// sounds (music.js fills SFX.f): thunder after each stroke on the castle, a roar and the fire's rush, each broadside
+const SFX = { f: null }, evSound = (k, d = 0) => SFX.f && SFX.f(k, d);
+const fr1 = (x) => x - floor(x), h11 = (x) => fr1(sin(x * 127.1) * 43758.5453);
+const EV = { storm: 0, stormOn: 0, dragT: -1e9, warT: -1e9, warOn: 0, warW: 0, last: 0 }, EVU = new Float32Array(4);
+const evTick = (t) => {
+  const dt = clamp(t - EV.last, 0, 0.1); EV.last = t;
+  EV.storm = clamp(EV.storm + (EV.stormOn ? dt : -dt) / 5, 0, 1); EV.warW = clamp(EV.warW + (EV.warOn ? dt / 14 : -dt / 6), 0, 1);
+  const dg = t - EV.dragT;
+  // thunder for the castle's strokes (sh_base.js flashK), a broadside's boom, the dragon's roar and fire
+  const k = floor(t / 2.6), kp = floor((t - dt) / 2.6);
+  if (k !== kp && EV.storm > 0.3 && h11(k * 3.1 + 0.7) >= 0.2) evSound('K', 0.25 + 0.6 * Math.random());
+  if (EV.warW > 0.98) { const a = (t - EV.warT) % 8, b = (t - dt - EV.warT) % 8; for (let i = 0; i < FLEET.length; i++) { const z = i * 1.6; if (a >= z && (b < z || b > a)) evSound('C', 0.3); } }
+  if (dg >= 0 && dg < DRAG_T) { for (const w of DRAG_FIRE) if (dg >= w[0] && dg - dt < w[0]) evSound('F'); if (dg >= 1.5 && dg - dt < 1.5) evSound('G'); }
+  EVU[0] = EV.storm; EVU[1] = dg >= 0 && dg < DRAG_T ? dg : -1; EVU[2] = EV.warW > 0 ? (t - EV.warT) % BATTLE_T : -1; EVU[3] = EV.warW;
+};
+const evKey = (k) => {
+  const t = F[TIME], go = (i) => { lookAt(...EV_POSES[i]); F[VX] = F[VY] = F[VZ] = 0; };
+  if (k === 'T') { EV.stormOn = !EV.stormOn; if (EV.stormOn) go(0); }
+  else if (k === 'G') { EV.dragT = t; go(1); }
+  else { EV.warOn = !EV.warOn; if (EV.warOn) { if (EV.warW === 0) EV.warT = t; go(2); } }
+  if (k === 'V' && EV.warOn) evSound('V');
+};
 let hud = false;
 function render() {
   const U = UB[V_MAIN], M = UB[V_MIR], S = UB[V_SH], fr = F[FRAME], t = F[TIME], par = fr & 1;
@@ -416,6 +441,7 @@ function render() {
   let mir = MIRROR ? 1 - sstep(170, 235, cy) : 0;
   for (let k = 0; k < 5; k++) { const o = O_PL + k * 4; if (U[o + 1] * WATER + U[o + 3] < -445) mir = 0; }
   U[O_PULSE + 3] = mir;
+  evTick(t); for (const B of UB) B.set(EVU, O_EV);
   if (CASC) {
     // cascade: a 92 m box around the point 36 m ahead of the camera
     shadowMat(O_SM, cx + U[O_FWD] * 36, cy + U[O_FWD + 1] * 36, cz + U[O_FWD + 2] * 36, 46, -420, 700, CASC, true);
@@ -581,6 +607,8 @@ const key = (e, v) => {
     default: if (v && !e.repeat) {
       if (e.code === 'KeyH') { hud = !hud; tsOn = hud && hasTS; info.textContent = ''; }
       else if (e.code === 'KeyC') solid = !solid;
+      else if (e.code === 'KeyO') setOra(ORE[(ORE.indexOf(ORA) + 1) % 4]);
+      else if (e.code === 'KeyT' || e.code === 'KeyG' || e.code === 'KeyV') evKey(e.code[3]);
       else if (e.code >= 'Digit1' && e.code <= 'Digit9') { lookAt(...POSES[e.code.charCodeAt(5) - 49]); F[VX] = F[VY] = F[VZ] = 0; }
     }
   }
@@ -617,6 +645,11 @@ $('o').onclick = () => ui(true);
 canvas.addEventListener('click', capture);
 document.addEventListener('pointerlockchange', () => { if (!mob) ui(!document.pointerLockElement); });
 // detail buttons: the current level is lit, the others reload with theirs
+// time of day: the menu's row and O; a change is baked at load, so it reloads the page (layout.js)
+const setOra = (o) => { try { localStorage.tancrediOra = o; } catch {} location.href = location.href.replace(/[?&]ora=\w+/, ''); };
+$('t').querySelectorAll('button').forEach((b, i) => { if (ORE[i] === ORA) b.className = 'on'; else b.onclick = () => setOra(ORE[i]); });
+// events from the menu too (phones have no keys): start it and play
+$('e').querySelectorAll('button').forEach((b, i) => { b.onclick = () => { evKey('TGV'[i]); $('d').click(); }; });
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { try { localStorage.atlantis = 2 - i; } catch {} location.href = location.href.replace(/[?&]lv=\d/, ''); }; });
 
 // draw the first frames and wait for the GPU (pipelines compile on first use) before revealing

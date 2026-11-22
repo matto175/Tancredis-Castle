@@ -30,7 +30,7 @@ body:not(.g) canvas { filter: blur(.4vmax) brightness(.75); }
   background: linear-gradient(90deg, #14171ccc, #14171c00 65%); transition: opacity .5s, visibility .5s;
 }
 .g #m, .m #s, .l #g, .l #k, .l #h { opacity: 0; visibility: hidden; }
-h1, #d, #q { font-family: "Palatino Linotype", Palatino, "Book Antiqua", Constantia, Georgia, serif; text-transform: uppercase; }
+h1, #d, .q { font-family: "Palatino Linotype", Palatino, "Book Antiqua", Constantia, Georgia, serif; text-transform: uppercase; }
 h1 {
   margin: 0 -.12em 0 0; font-size: 4.8em; line-height: 1; letter-spacing: .12em; color: #0000; background: var(--gold);
   -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 .03em 0 #14171c) drop-shadow(0 .08em .25em #000c);
@@ -49,9 +49,9 @@ button, a { padding: 0; border: 0; background: none; font: inherit; letter-spaci
 :focus-visible { outline: 2px solid #f6d9a8; outline-offset: .2em; }
 #g { display: grid; gap: .8em; }
 /* plates with cut corners: a gold frame (the plate) around a dark face (::before) */
-#d, #q, #q .on, #f a { clip-path: var(--cut); }
-#d, #q, #f a { position: relative; isolation: isolate; background: var(--gold); }
-#d::before, #q::before, #f a:first-child::before { content: ''; position: absolute; inset: 2px; z-index: -1; clip-path: var(--cut); background: linear-gradient(#2a2f36, #14171c); }
+#d, .q, .q .on, #f a { clip-path: var(--cut); }
+#d, .q, #f a { position: relative; isolation: isolate; background: var(--gold); }
+#d::before, .q::before, #f a:first-child::before { content: ''; position: absolute; inset: 2px; z-index: -1; clip-path: var(--cut); background: linear-gradient(#2a2f36, #14171c); }
 /* Enter: the selected entry, lit gold, with an engraved line inside its frame */
 #d { padding: .7em; font-size: 1.6em; letter-spacing: .25em; text-indent: .25em; color: #14171c; transition: filter .15s; }
 #d::before { inset: .22em; z-index: 0; background: none; box-shadow: inset 0 0 0 1px #14171c59; }
@@ -59,11 +59,12 @@ button, a { padding: 0; border: 0; background: none; font: inherit; letter-spaci
 #d:active { filter: brightness(.95); }
 #d:focus-visible { outline-color: #14171c; outline-offset: -.35em; }
 /* detail level: three segments, the current one lit, the others reload the page with theirs */
-#q { display: flex; align-items: center; gap: .3em; padding: .35em; font-size: 1.05em; letter-spacing: .12em; }
-#q span { padding: 0 .8em 0 .6em; color: #d9963a; }
-#q button { flex: 1; padding: .55em .2em; color: #f2eadbb3; transition: background .15s, color .15s; }
-#q button:hover { background: #d9963a2e; color: #f2eadb; }
-#q .on { background: var(--gold); color: #14171c; pointer-events: none; }
+.q + .q { margin-top: .5em; }
+.q { display: flex; align-items: center; gap: .3em; padding: .35em; font-size: 1.05em; letter-spacing: .12em; }
+.q span { padding: 0 .8em 0 .6em; color: #d9963a; }
+.q button { flex: 1; padding: .55em .2em; color: #f2eadbb3; transition: background .15s, color .15s; }
+.q button:hover { background: #d9963a2e; color: #f2eadb; }
+.q .on { background: var(--gold); color: #14171c; pointer-events: none; }
 
 /* the hint bar along the bottom: controls on the left, GitHub and Ko-fi on the right */
 #r {
@@ -109,7 +110,9 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
     <p id=s>Costruisco la città…</p>
     <div id=g>
       <button id=d>Entra</button>
-      <p id=q><span>Dettaglio</span><button>Basso</button><button>Medio</button><button>Alto</button></p>
+      <p id=q class=q><span>Dettaglio</span><button>Basso</button><button>Medio</button><button>Alto</button></p>
+      <p id=t class=q><span>Ora</span><button>Alba</button><button>Giorno</button><button>Tramonto</button><button>Notte</button></p>
+      <p id=e class=q><span>Eventi</span><button>Tempesta</button><button>Drago</button><button>Battaglia</button></p>
     </div>
   </div>
   <div id=r>
@@ -122,6 +125,10 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
       <span><b>H</b>Statistiche</span>
       <span><b>C</b>Attraversa i muri</span>
       <span><b>M</b>Musica</span>
+      <span><b>O</b>Ora del giorno</span>
+      <span><b>T</b>Tempesta</span>
+      <span><b>G</b>Drago</span>
+      <span><b>V</b>Battaglia sul mare</span>
       <span><b>Esc</b>Menu</span>
     </p>
     <p id=h>Tieni il dito giù per volare, fallo scorrere per girare, aggiungi un secondo dito per andare più veloce.</p>

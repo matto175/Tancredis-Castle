@@ -3,7 +3,18 @@
 const WATER = 6.5, LAND = 10, POD_Y = 40, TIP_Y = 145;
 const PULSE = 12; // seconds between beats of the city's energy pulse
 const SEA_GROW = 1.034; // each sea ring this much wider than the last (meshSea, and the swell's fade in the shader)
-const SUN = vnorm([-0.93, 0.105, -0.35]); // towards the sun: 6 degrees up, west-north-west (a dramatic sunset)
+// time of day (Tancredi's Castle): chosen in the menu or with O, kept in localStorage.tancrediOra, ?ora= for tests.
+// Everything that depends on the sun is baked at load, so a change reloads the page. At night the "sun" is the moon:
+// the same light scaled by SUNK and tinted blue (main.js, sh_base.js), with stars, and windows lit (sh_light.js).
+const ORE = ['alba', 'giorno', 'tramonto', 'notte'], ORE_IT = ['Alba', 'Giorno', 'Tramonto', 'Notte'];
+let ORA = 'tramonto'; try { ORA = localStorage.tancrediOra || ORA; } catch {}
+if (QP.has('ora')) ORA = QP.get('ora'); if (!ORE.includes(ORA)) ORA = 'tramonto';
+const NIGHT = ORA === 'notte' ? 1 : 0, SUNK = NIGHT ? 0.03 : 1;
+// exposure per time of day: the high sun is brighter, the moonlit night much darker
+const EXPO_ORA = { alba: 0.85, giorno: 0.42, tramonto: 0.8, notte: 1.4 }[ORA];
+// towards the sun (or moon): dawn low in the east-south-east, day high in the south-west, sunset 6 degrees up in the
+// west-north-west, the moon high in the south-east
+const SUN = vnorm({ alba: [0.86, 0.13, 0.49], giorno: [-0.42, 0.78, 0.46], tramonto: [-0.93, 0.105, -0.35], notte: [0.45, 0.5, 0.74] }[ORA]);
 const SPOKES = [0, 1, 2, 3, 4, 5].map((k) => PI / 2 + k * PI / 3); // south first
 const TOWERS = [0, 1, 2, 3, 4, 5].map((k) => k * PI / 3); // east first
 const TOWER_R = 190, SPOKE_W = 7; // tower distance from centre; half width of a spoke
@@ -173,6 +184,31 @@ const parcelUse = (b, s) => {
 const ISLES = [[-3900, 1150, 620, 95], [-4700, -900, 480, 70], [-3000, 2700, 380, 50], [3600, 2500, 700, 110], [900, 4700, 560, 80], [4800, -200, 520, 85]];
 // mountain waterfalls beside the river's: the x of the north-south line each is searched along (city.js)
 const FALL_X = [-430, 760];
+
+// events (main.js keys T, G, V): where each is watched from (position + look-at), the dragon's flight and the fleets
+const EV_POSES = [
+  [0, 42, 440, 0, 98, 0], // T: the storm, from the south avenue
+  [290, 105, 330, 0, 150, 0], // G: the dragon, from above the upper town
+  [0, 62, 500, 0, 4, 800], // V: the sea battle, from above the harbour mouth
+];
+// the dragon: in from the north-west, one and a half turns round the great tower (radius 150 m), then away climbing
+// to the west. Control points of one Catmull-Rom spline, DRAG_STEP s apart (sh_scene.js dragonAt)
+const DRAG_STEP = 2.5, DRAG_PATH = (() => {
+  const P = [], R = 150, th0 = -0.896, d = [0.781, 0.625], E = [R * cos(th0), R * sin(th0)];
+  for (let i = 6; i >= 1; i--) P.push([E[0] - d[0] * 112 * i, 175 + 22 * i, E[1] - d[1] * 112 * i]);
+  const n = 13, sweep = 1.5 * TAU;
+  for (let i = 0; i < n; i++) { const a = th0 + sweep * i / n; P.push([R * cos(a), 178 + 20 * sin(i * 0.9), R * sin(a)]); }
+  const a1 = th0 + sweep, t1 = [-sin(a1), cos(a1)];
+  for (let i = 0; i < 7; i++) { const a = a1 + 0.25 * i / 6; P.push([R * cos(a) + t1[0] * 110 * i, 178 + 30 * i, R * sin(a) + t1[1] * 110 * i]); }
+  return P;
+})();
+const DRAG_T = (DRAG_PATH.length - 3) * DRAG_STEP;
+// breathing fire, in seconds of the flight (fades in and out over 0.4 s)
+const DRAG_FIRE = [[19, 22.5], [31, 34.5]];
+// the sea battle in the harbour bay: the king's three ships head east nearer the city, the two black ships west
+// further out; each ship fires a broadside every 8 s (BATTLE_T is a multiple of it)
+const FLEET = [[-170, 690, 1], [0, 700, 1], [170, 690, 1], [-90, 865, -1], [90, 870, -1]];
+const BATTLE_T = 64;
 
 // camera: review shots and the scripted fly-through
 // position + look-at; keys 1-6

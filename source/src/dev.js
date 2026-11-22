@@ -51,6 +51,8 @@
   window.__shot = async (o) => {
     const out = [], dt = o.dt || 1 / 60, n = o.frames || 40;
     if (o.time !== undefined) F[TIME] = o.time;
+    // events: { storm 0-1, drag: seconds into the flight, war: seconds into the battle, warW } at the shot's end
+    if (o.ev) { const te = F[TIME] + n * dt; EV.storm = EV.stormOn = o.ev.storm || 0; EV.dragT = o.ev.drag === undefined ? -1e9 : te - o.ev.drag; EV.warOn = o.ev.war !== undefined; EV.warW = o.ev.warW === undefined ? (EV.warOn ? 1 : 0) : o.ev.warW; EV.warT = EV.warOn ? te - o.ev.war : -1e9; EV.last = F[TIME]; }
     if (o.fly !== undefined) {
       // approach along the path so the history matches a real flight
       for (let i = n; i >= 0; i--) { F[FLT] = o.fly - i * dt; flyAt(); F[TIME] += dt; if (i === n) F[RESET] = 1; draw(); if (i && i % 8 === 0) await Q.onSubmittedWorkDone(); }

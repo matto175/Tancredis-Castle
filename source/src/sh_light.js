@@ -223,7 +223,7 @@ fn shafts(fc: vec2f, z: f32, rd: vec3f) -> vec3f {
   let sv = skyVis(wp, N);
   // window glass (g2.a): a bit more mirror than real glass, to read face-on
   let glass = g2.a > .5; let glow = g2.a > .2 && g2.a < .45; let f0 = select(mix(vec3f(.04), alb, metal), vec3f(.085), glass); let dc = alb * (1. - metal);
-  var sun = view.sunc.rgb * sh;
+  let stm = view.ev.x; var sun = view.sunc.rgb * sh * (1. - .85 * stm); // storm clouds hide the sun
   // under water: moving caustics from the surface, dimmed with depth
   let r = length(wp.xz); let wl = select(0., ${WATER}, r < 432.); let dep = wl - wp.y;
   var cz = 0.; let pu = pulseAt(r);
@@ -254,22 +254,27 @@ fn shafts(fc: vec2f, z: f32, rd: vec3f) -> vec3f {
   let aoA = ao * sv; let aa = 2.04 * dc - .33; let bb = -4.8 * dc + .64; let cc = 2.75 * dc + .69;
   let aoc = max(vec3f(aoA), ((aoA * aa + bb) * aoA + cc) * aoA);
   let nv = max(dot(N, V), 1e-3);
-  col += dc * textureSampleLevel(tIrr, sLin, N, 0.).rgb * aoc;
+  col += dc * textureSampleLevel(tIrr, sLin, N, 0.).rgb * aoc * (1. - .55 * stm);
   let R = reflect(rd, N); var so = sat(pow(nv + aoA, exp2(-16. * rough - 1.)) - 1. + aoA) * mix(sv, 1., .3);
   var env = textureSampleLevel(tEnv, sLin, R, rough * 5.).rgb;
   // a recessed pane still mirrors what's in front: the reveal dims it only a little
   if (glass) { env = surround(R, env, wp); so = mix(so, 1., .6); }
-  col += env * envBRDF(f0, rough, nv) * so;
+  col += env * envBRDF(f0, rough, nv) * so * (1. - .6 * stm);
   // the crystal's own light, close by: breathing and flaring with the pulse
   let lc = vec3f(0., 60., 0.) - wp; let dl = dot(lc, lc);
   col += dc * vec3f(1., .82, .55) * (.5 + .5 * view.pulse.y + 1.6 * view.pulse.z) * 28. / (dl + 90.) * sat(dot(N, lc) * inverseSqrt(dl) * .7 + .3) * ao;
   // the pulse runs along gold inlay and sweeps a ring of light near the ground
   col += pu * g0.a * 9. + dc * pu * .55 * exp(-max(wp.y - 12., 0.) / 40.) * (.4 + .6 * ao);
   // lit windows, eyes and magic light shine by themselves
-  if (glow) { col += alb * lum(view.sunc.rgb) * .55; }
+  let gk = lum(view.sunc.rgb) / ${SUNK} * select(1., 1.4, ${NIGHT} == 1);
+  if (glow) { col += alb * gk * .55; }
+  // at night many windows of the city are lit, warm and a little different each
+  if (${NIGHT} == 1 && glass) { let hw = h21(floor(wp.xz * .55) + floor(wp.y * .4) * 7.13); if (hw > .35) { col += vec3f(1., .68, .36) * gk * (.25 + .35 * hw); } }
   // lightning lights the Serpent Fortress's plain
-  let fz = flash(); if (fz > .01) { col += dc * vec3f(.7, .7, 1.) * fz * lum(view.sunc.rgb) * .5 * exp(-length(wp.xz - SERPI_XZ) / 450.) * sat(N.y * .5 + .6); }
-  return vec4f(aerial(col, view.cam.xyz, rd, dist) + shafts(fc.xy, z, rd), 1.);
+  let fz = flash(); if (fz > .01) { col += dc * vec3f(.7, .7, 1.) * fz * gk * .5 * exp(-length(wp.xz - SERPI_XZ) / 450.) * sat(N.y * .5 + .6); }
+  // storm: each stroke on the castle lights up the city around it, walls facing the castle and the sky most
+  let fk = flashK(); if (fk > .01) { let tc = normalize(vec3f(0., 160., 0.) - wp); col += dc * vec3f(.75, .78, 1.) * fk * gk * .9 * exp(-length(wp.xz) / 650.) * (sat(dot(N, tc)) * .6 + sat(N.y) * .4 + .1); }
+  return vec4f(aerial(col, view.cam.xyz, rd, dist) * (1. - .25 * stm) + shafts(fc.xy, z, rd) * (1. - stm), 1.);
 }
 `;
 
@@ -346,6 +351,19 @@ fn agx(c: vec3f) -> vec3f {
   c = mix(c, bl, .04);
   // exposure, soft vignette, white balance for the warm low sun
   let q = uv - .5; c *= (1. - dot(q, q) * .3) * view.sunc.w * vec3f(1.07, 1., .9);
+  // storm: rain falling in slanted streaks, two layers, over everything
+  if (view.ev.x > 0.) {
+    let rs = vec2f(textureDimensions(tC)); let p = fc.xy / rs.y; let t = view.cam.w;
+    var rn = 0.;
+    for (var l = 0; l < 2; l++) {
+      let fl = f32(l); let sc = vec2f(90., 3.5) * (1. + fl * .8); let sp = 2.2 + fl * .9;
+      let g = vec2f(p.x + p.y * .18, p.y) * sc + vec2f(0., t * sp * sc.y);
+      let id = floor(g); let fr = fract(g); let h = h21(id + fl * 17.);
+      let on = step(.72, h); let streak = ss(.0, .25, fr.y) * (1. - ss(.25, .55, fr.y)) * (1. - ss(.08, .32, abs(fr.x - .5 + (h - .5) * .5)));
+      rn += on * streak * (.6 - fl * .25);
+    }
+    c = c * (1. - .1 * view.ev.x) + vec3f(.55, .6, .7) * rn * view.ev.x * .22 * (lum(c) + .08);
+  }
   c = agx(c);
   let n = ign(fc.xy) + ign(fc.xy + 37.) - 1.;
   return vec4f(c + n / 255., 1.);

@@ -1,6 +1,6 @@
 // shaders 2/4: instancing, GPU culling, materials (G-buffer) and shadow casters
 // material ids, shared by mesh generators and shaders
-const M = { MARBLE: 0, PAVE: 1, PLASTER: 2, GOLD: 3, QUAY: 4, FLOOR: 5, WINDOW: 6, BARK: 7, ALLOY: 8, TRIM: 9, TERRAIN: 10, CORE: 11, TERRACE: 12, GROUND: 13, STEP: 14, ROCK: 15, FALL: 16, SEA: 17, KID: 18, ROOF: 19, GLOW: 20, LEAF: 32 };
+const M = { MARBLE: 0, PAVE: 1, PLASTER: 2, GOLD: 3, QUAY: 4, FLOOR: 5, WINDOW: 6, BARK: 7, ALLOY: 8, TRIM: 9, TERRAIN: 10, CORE: 11, TERRACE: 12, GROUND: 13, STEP: 14, ROCK: 15, FALL: 16, SEA: 17, KID: 18, ROOF: 19, GLOW: 20, PAINT: 21, FIRE: 22, LEAF: 32 };
 // leaf atlas tiles (material = M.LEAF + tile): crowns, then vines (TRAIL fringe, VLEAF / VBLOSSOM carpets)
 const LT = { OLIVE: 0, BROAD: 1, PINE: 2, CYPRESS: 3, BLOSSOM: 4, HYDRANGEA: 5, TRAIL: 6, LAVENDER: 7, VLEAF: 8, VBLOSSOM: 9 };
 
@@ -118,6 +118,74 @@ fn kidPose(pos: vec3f, nrm: vec3f, ext: vec4f, sd: f32) -> KP {
   o = vec2f(o.x * c - o.y * s, o.x * s + o.y * c); on = vec2f(on.x * c - on.y * s, on.x * s + on.y * c);
   return KP(vec3f(o.x, kp.y, o.y), vec3f(on.x, kn.y, on.y));
 }
+// events (Tancredi's Castle; layout.js, events.js): the dragon and the two fleets are ordinary instances, moved here.
+// Their PAINT and FIRE vertices carry a palette entry in ea and role x 16 + part in eb; the instance's tint alpha
+// says which (240 the dragon, 241-245 the ships, in FLEET order). Off-stage they collapse far below the ground.
+const DPATH = array<vec3f, ${DRAG_PATH.length}>(${DRAG_PATH.map((p) => `vec3f(${p.map((v) => v.toFixed(1)).join(', ')})`).join(', ')});
+const FLEETS = array<vec4f, 5>(${FLEET.map((f) => `vec4f(${f[0]}., ${f[1]}., ${f[2]}., 0.)`).join(', ')});
+struct EvP { p: vec3f, n: vec3f }
+fn hull(z: f32) -> f32 { return select(5. * pow(max(1. - sq(z / 21.), 0.), .4), 5. * pow(max(1. - sq(z / 18.5), 0.), .6), z >= 0.); }
+fn dragonFire(t: f32) -> f32 {
+  var b = 0.;
+  ${DRAG_FIRE.map((w) => `b = max(b, ss(${w[0]}., ${w[0] + 0.4}, t) * (1. - ss(${w[1] - 0.4}, ${w[1]}, t)));`).join(' ')}
+  return b;
+}
+fn dragonAt(lp: vec3f, ln: vec3f, role: u32) -> EvP {
+  let t = view.ev.y; if (t < 0.) { return EvP(vec3f(0., -1e5, 0.), ln); }
+  let T = view.cam.w; var p = lp; var n = ln;
+  // wings beat about the shoulders, the outer part further; the body bobs against them
+  let fl = sin(T * 3.9);
+  if (role == 1u || role == 2u) {
+    let sx = select(-1., 1., role == 1u); let hg = vec3f(2.4 * sx, 1.6, 0.); let r = p - hg;
+    let ang = sx * (.55 * fl + .12) * (1. + .6 * sat(abs(r.x) / 22.));
+    p = hg + rotZ(r, ang); n = rotZ(n, ang);
+  }
+  if (role == 3u) { let k = sat((-p.z - 7.) / 25.); p.x += sin(T * 2.3 + p.z * .13) * 3.2 * k * k; }
+  if (role == 4u) {
+    // fire from the mouth, flickering
+    let b = dragonFire(t); let m = vec3f(0., 3.6, 22.5); let f = .85 + .15 * sin(T * 31. + p.z);
+    p = m + (p - m) * vec3f(b * f, b * f, b * (1. + .12 * sin(T * 23.)));
+  }
+  p.y -= .7 * fl;
+  // along the spline: position, heading and the turn's sideways pull (for the bank)
+  let s = t / ${DRAG_STEP} + 1.; let i = min(i32(s), ${DRAG_PATH.length - 3}); let u = s - f32(i);
+  let a = DPATH[i - 1]; let b = DPATH[i]; let c = DPATH[i + 1]; let d = DPATH[i + 2];
+  let k2 = 2. * a - 5. * b + 4. * c - d; let k3 = -a + 3. * b - 3. * c + d;
+  let pos = .5 * (2. * b + (c - a) * u + k2 * u * u + k3 * u * u * u);
+  let vel = .5 * ((c - a) + 2. * k2 * u + 3. * k3 * u * u); let acc = (k2 + 3. * k3 * u) / ${DRAG_STEP * DRAG_STEP};
+  let f = normalize(vel); let rt = normalize(cross(vec3f(0., 1., 0.), f)); let up = cross(f, rt);
+  let lat = dot(acc, rt); let ph = clamp(atan(lat / 9.8) * .8, -.7, .7);
+  let r2 = rt * cos(ph) - up * sin(ph); let u2 = up * cos(ph) + rt * sin(ph);
+  return EvP(pos + r2 * p.x + u2 * p.y + f * p.z, normalize(r2 * n.x + u2 * n.y + f * n.z));
+}
+fn shipAt(lp: vec3f, ln: vec3f, role: u32, part: u32, q: vec4f, id: u32) -> EvP {
+  let w = view.ev.w; if (w <= 0.) { return EvP(vec3f(0., -1e5, 0.), ln); }
+  let F = FLEETS[id]; let hd = F.z; let king = hd > 0.; let T = view.cam.w; let tb = view.ev.z; let fi = f32(id);
+  // sailing in from beyond the bay's mouth, then drifting to and fro
+  let e = 1. - w; let base = vec3f(F.x - hd * e * e * 700. + hd * 35. * sin(T * .06 + fi * 1.3), 0., F.y);
+  var p = lp; var n = ln;
+  // guns: part = gun (0-4) + 8 on the +x side; a broadside every 8 s, ship by ship, gun by gun; only the side facing
+  // the enemy fires (king's ships at the smaller z)
+  let sx = select(-1., 1., part >= 8u); let g = f32(part & 7u); let zg = -9. + g * 4.5;
+  let side = qrot(q, vec3f(sx, 0., 0.)).z * select(-1., 1., king);
+  var tau = 99.; if (tb >= 0. && side > 0. && w > .98) { tau = tb - fi * 1.6 - g * .13; tau = tau - floor(tau / 8.) * 8.; }
+  if (role == 5u) { let c = vec3f(sx * (hull(zg) + 1.6), 2., zg); let k = exp(-tau * 7.) * step(tau, 1.); p = c + (p - c) * k; }
+  if (role == 6u) {
+    let c = vec3f(sx * (hull(zg) + 3.5), 2.4, zg); let k = ss(0., .35, tau) * (1. + tau * .6) * (1. - ss(3.5, 5.5, tau));
+    p = c + (p - c) * k + vec3f(sx * tau * 2.5, tau * 1.8, 0.);
+  }
+  if (role == 7u) {
+    // splashes where the shot falls, short of the enemy line; not rocking with the ship
+    let c = vec3f(sx * (140. + 12. * g), 0., zg * 2.5); let ts = tau - 1.1; let h = ss(0., .15, ts) * (1. - ss(.5, 1.7, ts)) * step(ts, 2.);
+    p = c + (p - c) * vec3f(.6 + ts * .5, 1., .6 + ts * .5) * vec3f(step(.01, h), h, step(.01, h));
+    return EvP(base + qrot(q, p), qrot(q, n));
+  }
+  // rolling and pitching on the swell
+  let rl = .045 * sin(T * 1.1 + fi * 2.1); let pt = .022 * sin(T * .8 + fi);
+  p = rotX(rotZ(p, rl), pt); n = rotX(rotZ(n, rl), pt);
+  let sw = seaWave(base.xz, vec4f(1.)).x;
+  return EvP(base + vec3f(0., sw - .3, 0.) + qrot(q, p), qrot(q, n));
+}
 fn transform(v: VI) -> VO {
   let e = vis[v.ii]; let it = inst[e & 0xffffffu];
   let mat = u32(v.ext.x * 255. + .5);
@@ -144,6 +212,12 @@ fn transform(v: VI) -> VO {
     let sd = f32(it.tint >> 24u) / 255.; let r = length(it.p.xz); let t = view.cam.w;
     if (r < 450.) { let a = t * (5. + 5. * sd) / r * (1. + .3 * sin(t * .05 + sd * 20.)) * view.misc.w; let c = cos(a); let sn = sin(a); wp = vec3f(wp.x * c - wp.z * sn, wp.y, wp.x * sn + wp.z * c); n = vec3f(n.x * c - n.z * sn, n.y, n.x * sn + n.z * c); }
     wp.y += sin(t * .7 + sd * 40.) * .22 * view.misc.w;
+  }
+  let evc = it.tint >> 24u;
+  if ((mat == 21u || mat == 22u) && evc >= 240u && evc < 250u) {
+    let rp = u32(v.ext.z * 255. + .5); var a: EvP;
+    if (evc == 240u) { a = dragonAt(lp, vn, rp / 16u); } else { a = shipAt(lp, vn, rp / 16u, rp & 15u, q, evc - 241u); }
+    wp = a.p; n = a.n;
   }
   var o: VO;
   o.clip = view.vp * vec4f(wp, 1.); o.wp = wp; o.n = n; o.uv = v.ext.yzw; o.ao = v.nrm.w;
@@ -332,6 +406,10 @@ fn terrain(p: vec3f, dx: vec3f, dy: vec3f, fw: f32, n: vec3f, tv: vec3f) -> Mt {
   return o;
 }
 // bambini: skin, hair, bright clothes, trousers (linear albedo)
+// event palettes (events.js): 0 dragon red, 1 dragon gold, 2 wing, 3 horn, 4 timber, 5 sail, 6 king's blue, 7 gold,
+// 8 black hull, 9 dark red sail, 10 smoke, 11 spray; fire: 0 flame, 1 core, 2 eye, 3 cannon flash, 4 lantern
+const PAL = array<vec3f, 12>(vec3f(.34, .05, .03), vec3f(.55, .38, .1), vec3f(.2, .05, .04), vec3f(.66, .6, .46), vec3f(.24, .14, .07), vec3f(.74, .72, .66), vec3f(.06, .14, .38), vec3f(.66, .47, .14), vec3f(.035, .035, .045), vec3f(.26, .035, .03), vec3f(.3, .3, .31), vec3f(.82, .87, .9));
+const FPAL = array<vec3f, 5>(vec3f(1., .38, .06), vec3f(1., .85, .45), vec3f(1., .8, .1), vec3f(1., .75, .35), vec3f(1., .62, .25));
 const KSKIN = array<vec3f, 4>(vec3f(.86, .6, .46), vec3f(.7, .44, .3), vec3f(.42, .23, .13), vec3f(.22, .11, .06));
 const KHAIR = array<vec3f, 5>(vec3f(.05, .035, .025), vec3f(.16, .08, .035), vec3f(.55, .38, .16), vec3f(.32, .11, .04), vec3f(.025, .02, .018));
 const KCLOTH = array<vec3f, 8>(vec3f(.75, .05, .04), vec3f(.85, .62, .04), vec3f(.1, .35, .78), vec3f(.12, .5, .1), vec3f(.85, .25, .45), vec3f(.9, .3, .03), vec3f(.35, .12, .65), vec3f(.8, .8, .76));
@@ -467,6 +545,13 @@ const FLOWERS = array<vec3f, 8>(vec3f(.52, .08, .24), vec3f(.8, .36, .5), vec3f(
     let c = i.uv * i.uv; let cy = p.y / .42;
     let row = floor(cy); let fy = fract(cy); let cell = floor((p.x + p.z) / .6 + row * .5);
     o.alb = c * (.78 + .3 * h21(vec2f(row, cell))) * (1. - .45 * line(min(fy, 1. - fy) * .42, .02, fw)); o.rough = .32; o.nb = triN(p, dx, dy, w, 2.1, false) * .08;
+  } else if (mat == 21u) {
+    // painted: dragon scales, ship timbers and sails, smoke, spray (palette entry in uv.x)
+    let k = min(u32(i.uv.x * 255. + .5), 11u); let A = tri(tNoiseA, p, dx, dy, w, 1.4);
+    o.alb = PAL[k] * (.82 + .36 * A.r); o.rough = select(.75, .38, k <= 1u || k == 11u);
+  } else if (mat == 22u) {
+    // fire, cannon flash, eyes and lanterns: shine like GLOW
+    o.alb = FPAL[min(u32(i.uv.x * 255. + .5), 4u)]; o.rough = .6; glass = .3;
   } else if (mat == 20u) {
     // light: windows, eyes, magic (colour in uv); flagged for the lighting pass through the glass channel
     o.alb = i.uv * i.uv; o.rough = .6; glass = .3;

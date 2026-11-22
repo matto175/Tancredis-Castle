@@ -6,7 +6,7 @@ personaggio, castello, logo o brano di proprietà altrui.
 
 ## 1. Il mondo in una frase
 
-Una città ad anelli d'acqua attorno al castello bianco e azzurro del re Tancredi; a nord-ovest, su un monte, la rocca
+Una città ad anelli d'acqua attorno al castello di granito grigio e tetti d'ardesia del re Tancredi; a nord-ovest, su un monte, la rocca
 a forma di teschio cornuto dove vive una maga buona; a nord-est, su una piana nera battuta dai fulmini, la fortezza
 avvolta da un serpente gigante del signore oscuro.
 
@@ -30,11 +30,34 @@ Nomi provvisori dei personaggi: Re Tancredi, Maga Selene, Lord Vipero. Si cambia
 - La Rocca d'Avorio è misteriosa ma non cattiva: luce fredda, azzurra, tetti blu scuro.
 - La Fortezza delle Serpi è il lato scuro: nero, verde oliva, rosso brace.
 
+## 3bis. Ore del giorno
+
+Si cambiano con il tasto O o dal menu (la pagina si ricarica, perché luce e ombre vengono preparate all'avvio).
+
+| Ora | Sole | Come appare |
+| --- | --- | --- |
+| Alba | basso a est | luce calda e radente, cielo chiaro |
+| Giorno | alto | luce piena, ombre corte |
+| Tramonto | basso a ovest-nord-ovest (la scelta di partenza) | arancio sull'orizzonte, blu acciaio in alto |
+| Notte | luna a sud-est | cielo blu scuro con stelle e luna, finestre accese in tutta la città, nessuna fascia calda |
+
+## 3ter. Eventi
+
+| Tasto | Evento | Cosa succede |
+| --- | --- | --- |
+| T | Tempesta sul castello | nuvole basse color ardesia, il sole si spegne, fulmini ogni pochi secondi sulla torre maestra e sulle torri vicine, lampi che illuminano la città, pioggia e tuoni. Si accende e si spegne con T. |
+| G | Il drago | un drago rosso con il ventre d'oro e ali da pipistrello arriva da nord-ovest, fa un giro e mezzo attorno alla torre maestra, sputa fuoco due volte e riparte. Dura circa un minuto; G lo fa ripartire. |
+| V | Battaglia sul mare | le tre navi del re (fasciame, fascia blu, vele bianche a striscia blu, bandiere d'oro) contro le due navi nere del signore oscuro (vele rosso scuro), nella baia del porto: bordate di cannoni con lampi, fumo e spruzzi. Continua finché non si preme di nuovo V. |
+
+Ogni evento porta la vista nel punto da cui si vede meglio. Gli stessi eventi si avviano dal menu, anche su telefono e
+tablet. Il drago e le navi sono originali: nessun personaggio o veicolo di altre opere.
+
 ## 4. Musica
 
 Brano originale a 8 bit, eroico: La minore, 112 battiti al minuto, 32 battute. Una fanfara a onda quadra, un
 arpeggio, un basso "al galoppo" (dum da-da) e un fruscio. Giro di accordi i, VI, VII, i e poi iv, VII. Nessuna
-citazione di musiche esistenti.
+citazione di musiche esistenti. Gli eventi hanno suoni sintetizzati: tuoni, ruggito e fuoco del drago, colpi di
+cannone e un breve squillo di corni all'inizio della battaglia. M spegne tutto.
 
 ## 5. Cosa NON fare
 
